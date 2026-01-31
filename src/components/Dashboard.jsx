@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, Download, CheckCircle, Clock, Eye, Smartphone, GraduationCap, Clipboard, X, Briefcase, MapPin, Calendar, Award, BookOpen, Calculator, Printer, ShieldCheck, Home, User, Phone, Map, School, Filter, PieChart, TrendingUp, Send, MessageSquare, UserCheck } from 'lucide-react';
+import { LogOut, Users, Search, Download, CheckCircle, Clock, Eye, Smartphone, GraduationCap, Clipboard, X, Briefcase, MapPin, Calendar, Award, BookOpen, Calculator, Printer, ShieldCheck, Home, User, Phone, Map, School, Filter, PieChart, TrendingUp, Send, MessageSquare, UserCheck, Bus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 // --- Sub-Components ---
@@ -32,6 +32,8 @@ const StaffDashboardChatbot = ({ admissions, onUpdateRemarks }) => {
     ]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [lastFoundStudent, setLastFoundStudent] = useState(null);
+    const [remarkInput, setRemarkInput] = useState('');
 
     const handleSend = (e) => {
         e.preventDefault();
@@ -46,36 +48,39 @@ const StaffDashboardChatbot = ({ admissions, onUpdateRemarks }) => {
             const student = admissions.find(a => a.appNumber.toUpperCase() === userMsg.toUpperCase());
 
             if (student) {
+                setLastFoundStudent(student);
                 setMessages(prev => [...prev, {
                     role: 'ai',
                     text: `Found Record for ${student.studentName}.`,
                     data: student
                 }]);
-            } else if (userMsg.toLowerCase().startsWith('remark:')) {
-                // Special command to add remark to the last found student in trail
-                const lastAiMsg = [...messages].reverse().find(m => m.data);
-                if (lastAiMsg) {
-                    const remark = userMsg.replace('remark:', '').trim();
-                    onUpdateRemarks(lastAiMsg.data.id, remark);
-                    setMessages(prev => [...prev, { role: 'ai', text: `Remark successfully cataloged for ${lastAiMsg.data.studentName}: "${remark}"` }]);
-                } else {
-                    setMessages(prev => [...prev, { role: 'ai', text: 'Error: Please search for a student first before adding remarks.' }]);
-                }
             } else {
-                setMessages(prev => [...prev, { role: 'ai', text: `No record found for ID: ${userMsg}. Please verify the application format (e.g., KITE-2026-XXXX).` }]);
+                setMessages(prev => [...prev, { role: 'ai', text: `No record found for ID: ${userMsg}. Please verify the application format (e.g., APP-2026-6138).` }]);
+                setLastFoundStudent(null);
             }
             setIsTyping(false);
         }, 800);
     };
 
+    const handleAddRemark = () => {
+        if (!remarkInput.trim() || !lastFoundStudent) return;
+
+        onUpdateRemarks(lastFoundStudent.id, remarkInput.trim());
+        setMessages(prev => [...prev, { role: 'ai', text: `Remark successfully cataloged for ${lastFoundStudent.studentName}: "${remarkInput.trim()}"` }]);
+
+        // Update local last found student object to show the new remark immediately if searched again
+        setLastFoundStudent({ ...lastFoundStudent, remarks: remarkInput.trim() });
+        setRemarkInput('');
+    };
+
     return (
-        <div className="glass-card animate-fade-in" style={{ height: '70vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0, background: '#fff' }}>
+        <div className="glass-card animate-fade-in" style={{ height: '75vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0, background: '#fff' }}>
             {/* Chat header */}
             <div style={{ padding: '1.5rem', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <MessageSquare size={24} />
                 <div>
                     <h3 style={{ margin: 0 }}>Staff Enquiry Bot</h3>
-                    <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>Type App ID to search or "remark: [text]" to add notes</p>
+                    <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>Enter Application Number to view and add remarks</p>
                 </div>
             </div>
 
@@ -95,24 +100,40 @@ const StaffDashboardChatbot = ({ admissions, onUpdateRemarks }) => {
                         </div>
 
                         {m.data && (
-                            <div className="glass-card" style={{ marginTop: '1rem', padding: '1.5rem', background: '#fff', border: '1px solid #e2e8f0' }}>
+                            <div className="glass-card" style={{ marginTop: '1rem', padding: '1.5rem', background: '#fff', border: '1px solid #e2e8f0', minWidth: '300px' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                     <DetailItem label="Student" value={m.data.studentName} icon={User} />
-                                    <DetailItem label="Status" value={m.data.status} icon={CheckCircle} />
-                                    <DetailItem label="District" value={m.data.district} icon={MapPin} />
+                                    <DetailItem label="App No" value={m.data.appNumber} icon={Clipboard} />
+                                    <DetailItem label="Status" value={m.data.status || 'Pending'} icon={CheckCircle} />
                                     <DetailItem label="Course" value={m.data.course} icon={BookOpen} />
                                 </div>
+
                                 {m.data.remarks && (
                                     <div style={{ marginTop: '1rem', padding: '1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.75rem' }}>
-                                        <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#92400e' }}>PREVIOUS STAFF REMARKS</label>
+                                        <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#92400e' }}>CURRENT REMARKS</label>
                                         <div style={{ fontSize: '0.9rem', color: '#78350f', marginTop: '0.25rem' }}>{m.data.remarks}</div>
                                     </div>
                                 )}
+
+                                <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block' }}>Update/Add Remarks</label>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <input
+                                            type="text"
+                                            className="input-field"
+                                            placeholder="Type new remark..."
+                                            style={{ flex: 1, padding: '0.5rem 1rem' }}
+                                            value={remarkInput}
+                                            onChange={(e) => setRemarkInput(e.target.value)}
+                                        />
+                                        <button onClick={handleAddRemark} className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>Update</button>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
                 ))}
-                {isTyping && <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Bot is processing application...</div>}
+                {isTyping && <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Searching records...</div>}
             </div>
 
             {/* Input area */}
@@ -120,12 +141,12 @@ const StaffDashboardChatbot = ({ admissions, onUpdateRemarks }) => {
                 <input
                     type="text"
                     className="input-field"
-                    placeholder="Enter App Number (e.g. APP-2026-XXXX)..."
+                    placeholder="Enter Application ID (e.g. APP-2026-XXXX)..."
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                 />
                 <button type="submit" className="btn btn-primary" style={{ padding: '0 2rem' }}>
-                    <Send size={18} />
+                    <Search size={18} />
                 </button>
             </form>
         </div>
@@ -377,14 +398,26 @@ const Dashboard = ({ user, onLogout }) => {
         }));
     };
 
+    const genderStats = admissions.reduce((acc, a) => {
+        const g = a.gender === 'Male' ? 'Males' : (a.gender === 'Female' ? 'Females' : 'Other');
+        acc[g] = (acc[g] || 0) + 1;
+        return acc;
+    }, {});
+
+    const transportStats = admissions.reduce((acc, a) => {
+        const type = a.bus === 'Yes' ? 'Bus Req.' : (a.hostel === 'Yes' ? 'Hostel Req.' : 'Day Scholar');
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+    }, {});
+
     return (
         <div className="container animate-fade-in">
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }} className="no-print">
                 <div>
-                    <h1 className="font-outfit" style={{ fontSize: '2.2rem', color: 'var(--primary)', fontWeight: '900' }}>
+                    <h1 className="font-outfit" style={{ fontSize: '2.5rem', color: 'var(--primary)', fontWeight: '900' }}>
                         {user.role === 'admin' ? 'Strategic Admin Terminal' : (user.role === 'counselor' ? 'Staff Smart Terminal' : 'Student Dashboard')}
                     </h1>
-                    <p style={{ color: 'var(--text-muted)' }}>Logged as: <strong>{user.username}</strong></p>
+                    <p style={{ color: 'var(--text-muted)' }}>Welcome, <strong style={{ color: 'var(--text)' }}>{user.username}</strong></p>
                 </div>
                 <button onClick={onLogout} className="btn" style={{ background: '#fee2e2', color: '#ef4444', fontWeight: 800 }}>Logout</button>
             </header>
@@ -408,73 +441,176 @@ const Dashboard = ({ user, onLogout }) => {
                     )}
                 </div>
             ) : user.role === 'counselor' ? (
-                /* STAFF ONLY CHATBOT INTERFACE */
                 <StaffDashboardChatbot admissions={admissions} onUpdateRemarks={handleUpdateRemarks} />
             ) : (
                 <div className="no-print">
-                    {/* ... Admin View ... */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
-                        <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '10px solid var(--primary)' }}>
-                            <div style={{ fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.8rem' }}>TOTAL APPLICANTS</div>
-                            <div style={{ fontSize: '3rem', fontWeight: 900 }}>{totalCount}</div>
+                    {/* TOP STATS CARDS - IMAGE 1 STYLE */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+                        <div className="glass-card" style={{ padding: '2rem', background: '#fff', borderLeft: '10px solid var(--primary)', position: 'relative' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--text-light)', textTransform: 'uppercase' }}>Total Enquiries</div>
+                            <div style={{ fontSize: '3.5rem', fontWeight: 900, color: 'var(--primary)' }}>{totalCount}</div>
+                            <Users size={48} color="var(--primary)" style={{ position: 'absolute', right: '2rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.1 }} />
                         </div>
-                        <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '10px solid #8b5cf6' }}>
-                            <div style={{ fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.8rem' }}>AVG ENQ. CUTOFF</div>
-                            <div style={{ fontSize: '3rem', fontWeight: 900 }}>{getAvgCutoff()}</div>
+                        <div className="glass-card" style={{ padding: '2rem', background: '#fff', borderLeft: '10px solid #8b5cf6', position: 'relative' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 900, color: 'var(--text-light)', textTransform: 'uppercase' }}>Global Avg Cutoff</div>
+                            <div style={{ fontSize: '3.5rem', fontWeight: 900, color: '#8b5cf6' }}>{getAvgCutoff()}</div>
+                            <TrendingUp size={48} color="#8b5cf6" style={{ position: 'absolute', right: '2rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.1 }} />
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
-                        <div className="glass-card" style={{ padding: '2rem', background: '#fff' }}>
-                            <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>Regional Count & %</h3>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-                                {getStats('district').map(s => (
-                                    <div key={s.label} style={{ flex: 1, minWidth: '120px', padding: '1rem', background: '#f8fafc', borderRadius: '1rem', border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: '0.7rem', fontWeight: 900 }}>{s.label.toUpperCase()}</div>
-                                        <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{s.percent}%</div>
-                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.count} Students</div>
+                    {/* LIVE INSTITUTIONAL STATISTICS - IMAGE 0 STYLE */}
+                    <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                        <h2 className="font-outfit" style={{ fontSize: '2.5rem', fontWeight: 900, color: '#1e3a8a' }}>Live Institutional Statistics</h2>
+                        <p style={{ color: '#64748b', fontSize: '1.1rem' }}>Real-time transparency of the 2026 Admissions Enquiry Process</p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem', marginBottom: '4rem' }}>
+                        {/* Avg Cutoff Card */}
+                        <div className="glass-card" style={{ padding: '2.5rem', background: '#fff', borderTop: '6px solid #f97316' }}>
+                            <TrendingUp size={32} color="#f97316" style={{ marginBottom: '1.5rem' }} />
+                            <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Average Enquiry Cutoff</div>
+                            <div style={{ fontSize: '3.5rem', fontWeight: 900, color: '#1e3a8a' }}>{getAvgCutoff()}</div>
+                            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>From {totalCount} total enquiries</div>
+                        </div>
+
+                        {/* Gender Stats */}
+                        <div className="glass-card" style={{ padding: '2.5rem', background: '#fff', borderTop: '6px solid #1e3a8a' }}>
+                            <Users size={32} color="#1e3a8a" style={{ marginBottom: '1.5rem' }} />
+                            <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Gender Diversity</div>
+                            <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem' }}>
+                                <div>
+                                    <div style={{ fontSize: '2.5rem', fontWeight: 900 }}>{genderStats.Males || 0}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Males</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '2.5rem', fontWeight: 900 }}>{genderStats.Females || 0}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>Females</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Transport Stats */}
+                        <div className="glass-card" style={{ padding: '2.5rem', background: '#fff', borderTop: '6px solid #10b981' }}>
+                            <Bus size={32} color="#10b981" style={{ marginBottom: '1.5rem' }} />
+                            <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Transport Choice</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginTop: '1rem' }}>
+                                <div>
+                                    <div style={{ fontSize: '2.5rem', fontWeight: 900 }}>{transportStats['Bus Req.'] || 0}</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Bus Req.</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '2.5rem', fontWeight: 900 }}>{transportStats['Hostel Req.'] || 0}</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Hostel Req.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Community Diversity */}
+                        <div className="glass-card" style={{ padding: '2.5rem', background: '#fff', borderTop: '6px solid #8b5cf6', gridColumn: 'span 1' }}>
+                            <GraduationCap size={32} color="#8b5cf6" style={{ marginBottom: '1.5rem' }} />
+                            <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Community Diversity</div>
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                                {getStats('community').map(s => (
+                                    <div key={s.label} style={{ background: '#f1f5f9', padding: '0.75rem 1.25rem', borderRadius: '1rem', fontSize: '0.95rem', fontWeight: 800 }}>
+                                        {s.label}: {s.count}
                                     </div>
                                 ))}
                             </div>
                         </div>
                     </div>
 
+                    {/* Regional & Intelligence Feed - IMAGE 1 STYLE */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '2rem', marginBottom: '3.5rem' }}>
+                        {/* Regional Distribution */}
+                        <div className="glass-card" style={{ padding: '2rem', background: '#fff' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}><MapPin size={22} /> Regional Distribution (% District wise)</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
+                                {getStats('district').map(stat => (
+                                    <div key={stat.label} style={{ padding: '1.25rem', background: '#f8fafc', borderRadius: '1rem', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-light)' }}>{stat.label.toUpperCase()}</div>
+                                        <div style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--primary)', margin: '0.25rem 0' }}>{stat.percent}%</div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{stat.count} Applicants</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Demographic Intelligence */}
+                        <div className="glass-card" style={{ padding: '2rem', background: '#fff' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem' }}><Users size={22} /> Demographic Intelligence (% Statistics)</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                {/* Gender Split Sub-Card */}
+                                <div style={{ padding: '1.5rem', background: '#f8fafc', borderRadius: '1.25rem', border: '1px solid #e2e8f0' }}>
+                                    <div style={{ fontWeight: 900, fontSize: '0.8rem', marginBottom: '1rem', color: 'var(--text-muted)', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>GENDER SPLIT</div>
+                                    {getStats('gender').map(s => (
+                                        <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '1rem' }}>
+                                            <span style={{ fontWeight: 500 }}>{s.label}</span>
+                                            <strong style={{ color: 'var(--primary)' }}>{s.percent}%</strong>
+                                        </div>
+                                    ))}
+                                </div>
+                                {/* Logistics Sub-Card */}
+                                <div style={{ padding: '1.5rem', background: '#f8fafc', borderRadius: '1.25rem', border: '1px solid #e2e8f0' }}>
+                                    <div style={{ fontWeight: 900, fontSize: '0.8rem', marginBottom: '1rem', color: 'var(--text-muted)', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>LOGISTICS / TRANSPORT</div>
+                                    {Object.entries(transportStats).map(([label, count]) => (
+                                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '1rem' }}>
+                                            <span style={{ fontWeight: 500 }}>{label.split(' ')[0]}</span>
+                                            <strong style={{ color: 'var(--primary)' }}>{((count / totalCount) * 100).toFixed(1)}%</strong>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div style={{ marginTop: '1.5rem', padding: '1.5rem', background: '#fdf4ff', borderRadius: '1.25rem', border: '1px solid #f5d0fe' }}>
+                                <div style={{ fontWeight: 900, fontSize: '0.8rem', marginBottom: '1rem', color: '#a21caf' }}>COMMUNITY DIVERSITY (%)</div>
+                                <div style={{ display: 'flex', gap: '1.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                                    {getStats('community').map(s => (
+                                        <div key={s.label} style={{ textAlign: 'center', minWidth: '80px' }}>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#a21caf' }}>{s.percent}%</div>
+                                            <div style={{ fontSize: '0.7rem', fontWeight: 900, color: '#d946ef' }}>{s.label}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* TABLE LIST */}
                     <div className="glass-card" style={{ padding: '2.5rem', background: '#fff' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                             <div style={{ display: 'flex', gap: '1rem' }}>
                                 {['All', 'Pending', 'Approved'].map(tab => (
-                                    <button key={tab} onClick={() => setStatusFilter(tab)} className="btn" style={{ padding: '0.5rem 1.5rem', fontSize: '0.8rem', background: statusFilter === tab ? 'var(--primary)' : '#f1f5f9', color: statusFilter === tab ? '#fff' : 'var(--text)' }}>{tab}</button>
+                                    <button key={tab} onClick={() => setStatusFilter(tab)} className="btn" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', background: statusFilter === tab ? 'var(--primary)' : '#f1f5f9', color: statusFilter === tab ? '#fff' : 'var(--text)', borderRadius: '1rem' }}>{tab}</button>
                                 ))}
                             </div>
-                            <div style={{ position: 'relative', width: '300px' }}>
-                                <Search style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} size={16} />
-                                <input type="text" placeholder="Search records..." className="input-field" style={{ paddingLeft: '3rem' }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <div style={{ position: 'relative', width: '350px' }}>
+                                <Search style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)' }} size={18} />
+                                <input type="text" placeholder="Search records..." className="input-field" style={{ paddingLeft: '3.5rem', borderRadius: '1.25rem' }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                             </div>
                         </div>
                         <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
-                                    <tr style={{ textAlign: 'left', borderBottom: '2px solid #f1f5f9' }}>
-                                        <th style={{ padding: '1rem' }}>APP ID</th>
-                                        <th style={{ padding: '1rem' }}>NAME</th>
-                                        <th style={{ padding: '1rem' }}>LOCATION</th>
-                                        <th style={{ padding: '1rem' }}>STATUS</th>
-                                        <th style={{ padding: '1rem', textAlign: 'center' }}>VIEW</th>
+                                    <tr style={{ textAlign: 'left', color: 'var(--text-light)', fontWeight: 800, fontSize: '0.85rem', textTransform: 'uppercase', borderBottom: '2px solid #f1f5f9' }}>
+                                        <th style={{ padding: '1.5rem 1rem' }}>App ID</th>
+                                        <th style={{ padding: '1.5rem 1rem' }}>Name</th>
+                                        <th style={{ padding: '1.5rem 1rem' }}>Location</th>
+                                        <th style={{ padding: '1.5rem 1rem' }}>Status</th>
+                                        <th style={{ padding: '1.5rem 1rem', textAlign: 'center' }}>View</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {adminFiltered.map(item => (
                                         <tr key={item.id} style={{ borderBottom: '1px solid #f8fafc' }} className="table-row-hover">
-                                            <td style={{ padding: '1.25rem 1rem', fontWeight: 900, color: 'var(--primary)' }}>{item.appNumber}</td>
-                                            <td style={{ padding: '1.25rem 1rem', fontWeight: 700 }}>{item.studentName}</td>
-                                            <td style={{ padding: '1.25rem 1rem' }}>{item.district}</td>
-                                            <td style={{ padding: '1.25rem 1rem' }}>
-                                                <span style={{ padding: '0.3rem 1rem', borderRadius: '1rem', fontSize: '0.7rem', fontWeight: 900, background: item.status === 'Approved' ? '#dcfce7' : '#fef3c7', color: item.status === 'Approved' ? '#166534' : '#92400e' }}>
+                                            <td style={{ padding: '1.5rem 1rem', fontWeight: 900, color: 'var(--primary)' }}>{item.appNumber}</td>
+                                            <td style={{ padding: '1.5rem 1rem', fontWeight: 700 }}>{item.studentName}</td>
+                                            <td style={{ padding: '1.5rem 1rem' }}>{item.district}</td>
+                                            <td style={{ padding: '1.5rem 1rem' }}>
+                                                <span style={{ padding: '0.4rem 1.25rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 900, background: item.status === 'Approved' ? '#dcfce7' : '#fef3c7', color: item.status === 'Approved' ? '#166534' : '#92400e' }}>
                                                     {item.status?.toUpperCase() || 'PENDING'}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: '1.25rem 1rem', textAlign: 'center' }}>
-                                                <button onClick={() => setSelectedAdmission(item)} className="btn" style={{ padding: '0.5rem', background: '#f1f5f9' }}><Eye size={22} /></button>
+                                            <td style={{ padding: '1.5rem 1rem', textAlign: 'center' }}>
+                                                <button onClick={() => setSelectedAdmission(item)} className="btn" style={{ padding: '0.6rem', background: '#f1f5f9', borderRadius: '50%' }}><Eye size={20} /></button>
                                             </td>
                                         </tr>
                                     ))}
