@@ -51,7 +51,7 @@ function App() {
                     <Route
                         path="/dashboard"
                         element={
-                            user && (user.role === 'admin' || user.role === 'counselor') ? (
+                            user && (user.role === 'admin' || user.role === 'counselor' || user.role === 'student') ? (
                                 <DashboardPage user={user} onLogout={handleLogout} />
                             ) : (
                                 <Navigate to="/login" />

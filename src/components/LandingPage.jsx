@@ -7,13 +7,9 @@ const LandingPage = () => {
     return (
         <div style={{ minHeight: '100vh', background: '#fff', display: 'flex', flexDirection: 'column' }}>
             {/* Logo Section */}
-            <div style={{ padding: '1rem 5%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <img src="https://kgkite.ac.in/wp-content/uploads/2021/04/kgisl-logo.png" alt="KGiSL Logo" style={{ height: '60px' }} />
-                    <div style={{ borderLeft: '2px solid #eee', paddingLeft: '1rem' }}>
-                        <h1 className="font-display" style={{ fontSize: '1.5rem', margin: 0, color: '#1e3a8a', fontWeight: '800' }}>KGiSL Institute of Technology</h1>
-                        <p style={{ margin: 0, fontSize: '0.8rem', color: '#666', fontWeight: '600' }}>Co-Kreating Geniuses</p>
-                    </div>
+            <div style={{ padding: '1.5rem 5%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <img src="/logo.png" alt="KGiSL Logo" style={{ height: '70px', objectFit: 'contain' }} />
                 </div>
             </div>
 
@@ -32,32 +28,37 @@ const LandingPage = () => {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    backgroundImage: 'url("https://kgkite.ac.in/wp-content/uploads/2021/04/slider-1.jpg")',
+                    backgroundImage: 'url("/hero-bg.png")',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                 }} />
 
-                {/* White curve overlay similar to the image */}
+                {/* Content overlay - Adjusted for natural fit with the background image */}
                 <div style={{
                     position: 'absolute',
                     top: 0,
                     left: 0,
-                    width: '60%',
+                    width: '50%',
                     height: '100%',
-                    background: '#fff',
-                    clipPath: 'ellipse(85% 90% at 0% 50%)',
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '0 8%',
+                    paddingLeft: '8%',
                     zIndex: 2
                 }}>
-                    <div className="animate-in">
-                        <h2 className="font-display" style={{ fontSize: '4.5rem', fontWeight: '900', lineHeight: 1.1, color: '#1e3a8a', textShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <div className="animate-in" style={{ maxWidth: '600px' }}>
+                        <h2 className="font-display" style={{
+                            fontSize: '4rem',
+                            fontWeight: '900',
+                            lineHeight: 1.1,
+                            color: '#1e3a8a',
+                            marginBottom: '1rem',
+                            visibility: 'hidden' // Hide text if it clashes with image text, otherwise remove this line
+                        }}>
                             Co-Kreating<br />
                             <span style={{ color: '#f97316' }}>Geniuses</span>
                         </h2>
-                        <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem' }}>
-                            <button onClick={() => navigate('/enquiry')} className="btn-primary" style={{ padding: '1rem 2.5rem', fontSize: '1.1rem', background: '#f97316' }}>Apply Now</button>
+                        <div style={{ marginTop: '2rem' }}>
+                            <button onClick={() => navigate('/enquiry')} className="btn-primary" style={{ padding: '1rem 3rem', fontSize: '1.2rem', background: '#f97316', fontWeight: 'bold', boxShadow: '0 10px 20px rgba(249, 115, 22, 0.3)' }}>Apply Now</button>
                         </div>
                     </div>
                 </div>

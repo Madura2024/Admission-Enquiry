@@ -69,12 +69,12 @@ const CounselorChat = ({ user }) => {
             let responseText = `I found student details for ${student.studentName}:\n\n- Course: ${student.course}\n- Institution: ${student.institution}\n- Status: ${student.status}`;
 
             if (comments.length > 0) {
-                responseText += `\n\nPrevious Comments found:`;
+                responseText += `\n\nPrevious Remarks found:`;
                 comments.forEach(c => {
                     responseText += `\n• ${c.text} (by ${c.author} on ${new Date(c.date).toLocaleDateString()})`;
                 });
             } else {
-                responseText += `\n\nNo previous comments found. You can add a comment by typing 'comment: your message'.`;
+                responseText += `\n\nNo previous remarks found. You can add remarks by typing 'remark: your message'.`;
             }
 
             setTimeout(() => {
@@ -87,12 +87,12 @@ const CounselorChat = ({ user }) => {
                     data: student
                 }]);
             }, 500);
-        } else if (lowerQuery.startsWith('comment:') || (selectedStudent && !lowerQuery.includes('lookup'))) {
+        } else if (lowerQuery.startsWith('remark:') || (selectedStudent && !lowerQuery.includes('lookup'))) {
             if (!selectedStudent) {
                 setTimeout(() => {
                     setMessages(prev => [...prev, {
                         id: Date.now() + 1,
-                        text: "Please look up a student first before adding a comment.",
+                        text: "Please look up a student first before adding remarks.",
                         sender: 'bot',
                         timestamp: new Date()
                     }]);
@@ -100,21 +100,21 @@ const CounselorChat = ({ user }) => {
                 return;
             }
 
-            const commentText = lowerQuery.startsWith('comment:') ? text.substring(8).trim() : text;
+            const commentText = lowerQuery.startsWith('remark:') ? text.substring(7).trim() : text;
             const newComment = {
                 text: commentText,
                 author: user.username,
                 date: new Date().toISOString()
             };
 
-            const studentKey = `comments_${selectedStudent.appNumber || selectedStudent.id}`;
+            const studentKey = `remarks_${selectedStudent.appNumber || selectedStudent.id}`;
             const existingComments = JSON.parse(localStorage.getItem(studentKey) || '[]');
             localStorage.setItem(studentKey, JSON.stringify([...existingComments, newComment]));
 
             setTimeout(() => {
                 setMessages(prev => [...prev, {
                     id: Date.now() + 1,
-                    text: `Comment saved for ${selectedStudent.studentName}: "${commentText}"`,
+                    text: `Remarks saved for ${selectedStudent.studentName}: "${commentText}"`,
                     sender: 'bot',
                     timestamp: new Date()
                 }]);
@@ -197,7 +197,7 @@ const CounselorChat = ({ user }) => {
                     <Info size={14} /> View Details
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <History size={14} /> Previous Comments
+                    <History size={14} /> Previous Remarks
                 </div>
             </div>
         </div>

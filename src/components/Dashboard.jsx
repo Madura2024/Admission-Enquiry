@@ -1,654 +1,503 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, Download, CheckCircle, Clock, Eye, Smartphone, GraduationCap, Clipboard, X, Briefcase, MapPin, Calendar, Award, BookOpen, Calculator } from 'lucide-react';
+import { LogOut, Users, Search, Download, CheckCircle, Clock, Eye, Smartphone, GraduationCap, Clipboard, X, Briefcase, MapPin, Calendar, Award, BookOpen, Calculator, Printer, ShieldCheck, Home, User, Phone, Map, School, Filter, PieChart, TrendingUp, Send, MessageSquare, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import CounselorChat from './CounselorChat';
 
+// --- Sub-Components ---
 
-const Dashboard = ({ user, onLogout }) => {
-    const [admissions, setAdmissions] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedAdmission, setSelectedAdmission] = useState(null);
-    const [statView, setStatView] = useState('districts'); // districts, gender, quota, transport
-    const navigate = useNavigate();
+const DetailItem = ({ label, value, icon: Icon }) => (
+    <div style={{ marginBottom: '1.25rem' }}>
+        <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            fontSize: '0.7rem',
+            fontWeight: '800',
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '0.25rem'
+        }}>
+            {Icon && <Icon size={12} />} {label}
+        </label>
+        <div style={{ fontSize: '1rem', color: 'var(--text)', fontWeight: '600' }}>
+            {value || 'Not Disclosed'}
+        </div>
+    </div>
+);
 
+/** STAFF CHATBOT VIEW - Smart Query Terminal */
+const StaffDashboardChatbot = ({ admissions, onUpdateRemarks }) => {
+    const [messages, setMessages] = useState([
+        { role: 'ai', text: 'Welcome Staff Terminal. Please enter the Student Application Number to fetch dossier or add official remarks.' }
+    ]);
+    const [inputValue, setInputValue] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
 
-    useEffect(() => {
-        const loadData = () => {
-            const data = JSON.parse(localStorage.getItem('admissions') || '[]');
-            setAdmissions(data);
-        };
+    const handleSend = (e) => {
+        e.preventDefault();
+        if (!inputValue.trim()) return;
 
-        loadData();
+        const userMsg = inputValue.trim();
+        setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+        setInputValue('');
+        setIsTyping(true);
 
-        // Listen for storage changes from other tabs
-        window.addEventListener('storage', loadData);
+        setTimeout(() => {
+            const student = admissions.find(a => a.appNumber.toUpperCase() === userMsg.toUpperCase());
 
-        // Polling as fallback for same-tab updates
-        const interval = setInterval(loadData, 3000);
+            if (student) {
+                setMessages(prev => [...prev, {
+                    role: 'ai',
+                    text: `Found Record for ${student.studentName}.`,
+                    data: student
+                }]);
+            } else if (userMsg.toLowerCase().startsWith('remark:')) {
+                // Special command to add remark to the last found student in trail
+                const lastAiMsg = [...messages].reverse().find(m => m.data);
+                if (lastAiMsg) {
+                    const remark = userMsg.replace('remark:', '').trim();
+                    onUpdateRemarks(lastAiMsg.data.id, remark);
+                    setMessages(prev => [...prev, { role: 'ai', text: `Remark successfully cataloged for ${lastAiMsg.data.studentName}: "${remark}"` }]);
+                } else {
+                    setMessages(prev => [...prev, { role: 'ai', text: 'Error: Please search for a student first before adding remarks.' }]);
+                }
+            } else {
+                setMessages(prev => [...prev, { role: 'ai', text: `No record found for ID: ${userMsg}. Please verify the application format (e.g., KITE-2026-XXXX).` }]);
+            }
+            setIsTyping(false);
+        }, 800);
+    };
 
-        return () => {
-            window.removeEventListener('storage', loadData);
-            clearInterval(interval);
-        };
-    }, []);
+    return (
+        <div className="glass-card animate-fade-in" style={{ height: '70vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0, background: '#fff' }}>
+            {/* Chat header */}
+            <div style={{ padding: '1.5rem', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <MessageSquare size={24} />
+                <div>
+                    <h3 style={{ margin: 0 }}>Staff Enquiry Bot</h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.8 }}>Type App ID to search or "remark: [text]" to add notes</p>
+                </div>
+            </div>
 
-    const filteredData = admissions.filter(item => {
-        const s = searchTerm.toLowerCase();
-        return (
-            (item.studentName || '').toLowerCase().includes(s) ||
-            (item.course || '').toLowerCase().includes(s) ||
-            (item.institution || '').toLowerCase().includes(s) ||
-            (item.appNumber || '').toLowerCase().includes(s) ||
-            (item.phone1 || '').toLowerCase().includes(s) ||
-            (item.phone2 || '').toLowerCase().includes(s) ||
-            (item.phone3 || '').toLowerCase().includes(s) ||
-            (item.schoolName || '').toLowerCase().includes(s) ||
-            (item.district || '').toLowerCase().includes(s) ||
-            (item.aadhaarNo || '').toLowerCase().includes(s)
-        );
-    });
+            {/* Chat area */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                {messages.map((m, i) => (
+                    <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                        <div style={{
+                            padding: '1rem 1.5rem',
+                            borderRadius: '1.25rem',
+                            background: m.role === 'user' ? 'var(--primary)' : '#f1f5f9',
+                            color: m.role === 'user' ? '#fff' : 'var(--text)',
+                            fontSize: '1rem',
+                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                        }}>
+                            {m.text}
+                        </div>
 
-    const DetailItem = ({ label, value, icon: Icon }) => (
-        <div style={{ marginBottom: '1rem' }}>
-            <label style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.025em',
-                marginBottom: '0.25rem'
-            }}>
-                {Icon && <Icon size={12} />} {label}
-            </label>
-            <div style={{ fontSize: '1rem', color: 'var(--text)', fontWeight: '500' }}>
-                {value || 'N/A'}
+                        {m.data && (
+                            <div className="glass-card" style={{ marginTop: '1rem', padding: '1.5rem', background: '#fff', border: '1px solid #e2e8f0' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <DetailItem label="Student" value={m.data.studentName} icon={User} />
+                                    <DetailItem label="Status" value={m.data.status} icon={CheckCircle} />
+                                    <DetailItem label="District" value={m.data.district} icon={MapPin} />
+                                    <DetailItem label="Course" value={m.data.course} icon={BookOpen} />
+                                </div>
+                                {m.data.remarks && (
+                                    <div style={{ marginTop: '1rem', padding: '1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.75rem' }}>
+                                        <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#92400e' }}>PREVIOUS STAFF REMARKS</label>
+                                        <div style={{ fontSize: '0.9rem', color: '#78350f', marginTop: '0.25rem' }}>{m.data.remarks}</div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ))}
+                {isTyping && <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Bot is processing application...</div>}
+            </div>
+
+            {/* Input area */}
+            <form onSubmit={handleSend} style={{ padding: '1.5rem', borderTop: '1px solid #eee', display: 'flex', gap: '1rem' }}>
+                <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Enter App Number (e.g. APP-2026-XXXX)..."
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                />
+                <button type="submit" className="btn btn-primary" style={{ padding: '0 2rem' }}>
+                    <Send size={18} />
+                </button>
+            </form>
+        </div>
+    );
+};
+
+/** FORMAL PRINTABLE TABLE FORM */
+const StudentPrintableForm = ({ admission, onClose }) => {
+    if (!admission) return null;
+    const thStyle = { background: '#f8fafc', fontWeight: '900', padding: '12px', border: '1.5px solid #000', textAlign: 'left', fontSize: '11px', textTransform: 'uppercase' };
+    const tdStyle = { padding: '12px', border: '1.5px solid #000', fontSize: '13px', color: '#000' };
+
+    return (
+        <div className="animate-scale-in" style={{
+            width: '95%', maxWidth: '950px', maxHeight: '90vh', background: '#fff',
+            borderRadius: '1rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            display: 'flex', flexDirection: 'column'
+        }} onClick={e => e.stopPropagation()}>
+            <div className="no-print" style={{ padding: '1.5rem', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '1.25rem', color: 'var(--primary)', fontWeight: 800 }}>Formal Admission Form Preview</h2>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button onClick={() => window.print()} className="btn btn-primary"><Printer size={18} /> Download / Print Form</button>
+                    <button onClick={onClose} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={28} /></button>
+                </div>
+            </div>
+            <div id="printable-document" style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
+                <div id="printable-form" style={{ fontFamily: '"Times New Roman", serif', color: '#000' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '1.5rem', border: '2px solid #000', padding: '20px' }}>
+                        <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '900' }}>KGiSL INSTITUTIONS</h1>
+                        <p style={{ margin: '5px 0', fontSize: '14px' }}>Coimbatore - 641 035, Tamil Nadu, India</p>
+                        <hr style={{ margin: '15px 0', border: '0', borderTop: '1px solid #000' }} />
+                        <h2 style={{ margin: 0, fontSize: '18px', textTransform: 'uppercase' }}>Admission Enquiry Form - Academic Year 2026</h2>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                        <tbody>
+                            <tr>
+                                <th style={thStyle}>Application Number</th>
+                                <td style={tdStyle}>{admission.appNumber}</td>
+                                <th style={thStyle}>Verification Status</th>
+                                <td style={tdStyle}><strong style={{ textTransform: 'uppercase' }}>{admission.status || 'Pending'}</strong></td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>Date of Submission</th>
+                                <td style={tdStyle}>{admission.submittedAt ? new Date(admission.submittedAt).toLocaleString() : 'N/A'}</td>
+                                <th style={thStyle}>Date of Approval</th>
+                                <td style={tdStyle}>{admission.approvedAt ? new Date(admission.approvedAt).toLocaleString() : '---'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style={{ background: '#000', color: '#fff', padding: '5px 15px', fontWeight: '900', fontSize: '13px' }}>1. CANDIDATE PERSONAL DETAILS</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                        <tbody>
+                            <tr>
+                                <th style={thStyle} width="20%">Student Name</th>
+                                <td style={tdStyle} width="30%">{admission.studentName}</td>
+                                <th style={thStyle} width="20%">Gender</th>
+                                <td style={tdStyle} width="30%">{admission.gender}</td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>Date of Birth</th>
+                                <td style={tdStyle}>{admission.dob}</td>
+                                <th style={thStyle}>Aadhaar No</th>
+                                <td style={tdStyle}>{admission.aadhaarNo}</td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>Community</th>
+                                <td style={tdStyle}>{admission.community}</td>
+                                <th style={thStyle}>Caste</th>
+                                <td style={tdStyle}>{admission.caste || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>Religion</th>
+                                <td style={tdStyle} colSpan="3">{admission.religion || 'N/A'}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style={{ background: '#000', color: '#fff', padding: '5px 15px', fontWeight: '900', fontSize: '13px' }}>2. CONTACT & RESIDENCY</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                        <tbody>
+                            <tr>
+                                <th style={thStyle} width="20%">Mobile 1</th>
+                                <td style={tdStyle} width="30%">{admission.phone1}</td>
+                                <th style={thStyle} width="20%">Mobile 2</th>
+                                <td style={tdStyle} width="30%">{admission.phone2 || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>District</th>
+                                <td style={tdStyle}>{admission.district}</td>
+                                <th style={thStyle}>Pincode</th>
+                                <td style={tdStyle}>{admission.pincode}</td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>Full Address</th>
+                                <td style={tdStyle} colSpan="3">{admission.address}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style={{ background: '#000', color: '#fff', padding: '5px 15px', fontWeight: '900', fontSize: '13px' }}>3. COURSE OF CHOICE</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                        <tbody>
+                            <tr>
+                                <th style={thStyle} width="20%">Institution</th>
+                                <td style={tdStyle}>{admission.institution}</td>
+                                <th style={thStyle} width="20%">Course</th>
+                                <td style={tdStyle}>{admission.course}</td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>Transport</th>
+                                <td style={tdStyle} colSpan="3">
+                                    {admission.bus === 'Yes' ? 'Bus Transport' : (admission.hostel === 'Yes' ? 'Hostel Facility' : 'Day Scholar')}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style={{ background: '#000', color: '#fff', padding: '5px 15px', fontWeight: '900', fontSize: '13px' }}>4. ACADEMIC & FAMILY DETAILS</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+                        <tbody>
+                            <tr>
+                                <th style={thStyle} width="20%">Father Name</th>
+                                <td style={tdStyle}>{admission.fatherName}</td>
+                                <th style={thStyle} width="20%">Occupation</th>
+                                <td style={tdStyle}>{admission.fatherOccupation}</td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>Mother Name</th>
+                                <td style={tdStyle}>{admission.motherName}</td>
+                                <th style={thStyle}>Annual Income</th>
+                                <td style={tdStyle}>Rs. {admission.annualIncome || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <th style={thStyle}>School Name</th>
+                                <td style={tdStyle}>{admission.schoolName}</td>
+                                <th style={thStyle}>12th Cutoff</th>
+                                <td style={tdStyle}><strong style={{ fontSize: '18px' }}>{admission.marks12th?.cutoff || '---'}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
+};
+
+/** ADMIN Dossier Viewer */
+const AdminDetailDossier = ({ admission, onClose, onApprove }) => (
+    <div className="animate-scale-in" style={{
+        width: '95%', maxWidth: '1100px', height: '90vh', background: '#f8fafc',
+        borderRadius: '1.5rem', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+        display: 'flex', flexDirection: 'column'
+    }} onClick={e => e.stopPropagation()}>
+        <div style={{ padding: '2rem', background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+                <h2 style={{ margin: 0, fontSize: '1.75rem' }}>Full Application Details</h2>
+                <p style={{ opacity: 0.8 }}>Viewing records for {admission.studentName} ({admission.appNumber})</p>
+            </div>
+            <button onClick={onClose} style={{ border: 'none', background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '0.5rem', borderRadius: '50%', cursor: 'pointer' }}><X size={28} /></button>
+        </div>
+        <div style={{ flex: 1, padding: '2.5rem', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+            <div className="glass-card" style={{ padding: '1.5rem', background: '#fff' }}>
+                <h3 style={{ color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Personal & Demographic</h3>
+                <DetailItem label="Full Name" value={admission.studentName} icon={User} />
+                <DetailItem label="Gender" value={admission.gender} />
+                <DetailItem label="Date of Birth" value={admission.dob} />
+                <DetailItem label="Aadhaar" value={admission.aadhaarNo} />
+                <DetailItem label="Community" value={admission.community} />
+                <DetailItem label="Caste" value={admission.caste} />
+            </div>
+            <div className="glass-card" style={{ padding: '1.5rem', background: '#fff' }}>
+                <h3 style={{ color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Contact Details</h3>
+                <DetailItem label="Phone 1 (Main)" value={admission.phone1} icon={Phone} />
+                <DetailItem label="District" value={admission.district} icon={MapPin} />
+                <DetailItem label="Address" value={admission.address} />
+            </div>
+            <div className="glass-card" style={{ padding: '1.5rem', background: '#fff' }}>
+                <h3 style={{ color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Preferences</h3>
+                <DetailItem label="Course" value={admission.course} icon={BookOpen} />
+                <DetailItem label="Cutoff" value={admission.marks12th?.cutoff} />
+                <DetailItem label="Transport" value={admission.bus === 'Yes' ? 'Bus' : (admission.hostel === 'Yes' ? 'Hostel' : 'Day Scholar')} />
+            </div>
+            <div className="glass-card" style={{ padding: '1.5rem', background: '#fff' }}>
+                <h3 style={{ color: 'var(--primary)', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginBottom: '1.5rem' }}>Family Records</h3>
+                <DetailItem label="Father Name" value={admission.fatherName} />
+                <DetailItem label="Mother Name" value={admission.motherName} />
+                <DetailItem label="Income" value={`Rs. ${admission.annualIncome}`} />
+            </div>
+        </div>
+        <div style={{ padding: '2rem', background: '#fff', borderTop: '2px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+            <button onClick={onClose} className="btn" style={{ background: '#f1f5f9' }}>Close Access</button>
+            {admission.status !== 'Approved' && (
+                <button onClick={() => onApprove(admission.id)} className="btn btn-primary" style={{ padding: '1rem 3rem' }}>VERIFY & APPROVE STUDENT NOW</button>
+            )}
+        </div>
+    </div>
+);
+
+// --- Main Dashboard ---
+
+const Dashboard = ({ user, onLogout }) => {
+    const [admissions, setAdmissions] = useState([]);
+    const [selectedAdmission, setSelectedAdmission] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const load = () => setAdmissions(JSON.parse(localStorage.getItem('admissions') || '[]'));
+        load();
+        const interval = setInterval(load, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleApprove = (id) => {
+        const data = JSON.parse(localStorage.getItem('admissions') || '[]');
+        const updated = data.map(a => a.id === id ? { ...a, status: 'Approved', approvedAt: new Date().toISOString() } : a);
+        localStorage.setItem('admissions', JSON.stringify(updated));
+        setAdmissions(updated);
+        if (selectedAdmission?.id === id) setSelectedAdmission({ ...selectedAdmission, status: 'Approved', approvedAt: new Date().toISOString() });
+    };
+
+    const handleUpdateRemarks = (id, remarks) => {
+        const data = JSON.parse(localStorage.getItem('admissions') || '[]');
+        const updated = data.map(a => a.id === id ? { ...a, remarks } : a);
+        localStorage.setItem('admissions', JSON.stringify(updated));
+        setAdmissions(updated);
+    };
+
+    const studentAdmission = admissions.find(a => a.appNumber === user.appNumber || a.studentUsername === user.username);
+    const adminFiltered = admissions.filter(a => {
+        const s = searchTerm.toLowerCase();
+        const matchesSearch = (a.studentName || '').toLowerCase().includes(s) || (a.appNumber || '').toLowerCase().includes(s) || (a.district || '').toLowerCase().includes(s);
+        const matchesStatus = statusFilter === 'All' || (statusFilter === 'Approved' ? a.status === 'Approved' : a.status !== 'Approved');
+        return matchesSearch && matchesStatus;
+    });
+
+    const totalCount = admissions.length;
+    const getAvgCutoff = () => {
+        const cutoffs = admissions.map(a => parseFloat(a.marks12th?.cutoff)).filter(v => !isNaN(v));
+        return cutoffs.length ? (cutoffs.reduce((a, b) => a + b, 0) / cutoffs.length).toFixed(2) : '0.0';
+    };
+
+    const getStats = (key) => {
+        const counts = admissions.reduce((acc, a) => {
+            const val = a[key] || 'Other';
+            acc[val] = (acc[val] || 0) + 1;
+            return acc;
+        }, {});
+        return Object.entries(counts).map(([label, count]) => ({
+            label, count, percent: ((count / totalCount) * 100).toFixed(1)
+        }));
+    };
 
     return (
         <div className="container animate-fade-in">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }} className="no-print">
                 <div>
-                    <h1 className="font-outfit" style={{ fontSize: '2.5rem', background: 'linear-gradient(to right, var(--primary), #64748b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                        {user.role === 'admin' ? 'Admin Control Center' : 'Counselor Dashboard'}
+                    <h1 className="font-outfit" style={{ fontSize: '2.2rem', color: 'var(--primary)', fontWeight: '900' }}>
+                        {user.role === 'admin' ? 'Strategic Admin Terminal' : (user.role === 'counselor' ? 'Staff Smart Terminal' : 'Student Dashboard')}
                     </h1>
-                    <p style={{ color: 'var(--text-muted)' }}>Managing Student Admissions | Logged in as {user.username}</p>
+                    <p style={{ color: 'var(--text-muted)' }}>Logged as: <strong>{user.username}</strong></p>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button onClick={onLogout} className="btn" style={{ background: 'var(--glass-bg)', color: 'var(--error)' }}>
-                        <LogOut size={18} /> Logout
-                    </button>
-                </div>
+                <button onClick={onLogout} className="btn" style={{ background: '#fee2e2', color: '#ef4444', fontWeight: 800 }}>Logout</button>
+            </header>
 
-            </div>
-
-            {user.role === 'counselor' ? (
-                <CounselorChat user={user} />
-            ) : (
-                <>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '1.5rem', marginBottom: '2rem' }}>
-                        {/* Summary Stats */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--primary)' }}>
-                                <div style={{ background: 'rgba(30, 58, 138, 0.1)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                                    <Users size={20} color="var(--primary)" />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{admissions.length}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Apps</div>
-                                </div>
-                            </div>
-                            <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--success)' }}>
-                                <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                                    <CheckCircle size={20} color="var(--success)" />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{admissions.filter(a => a.status === 'Approved').length}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Approved</div>
-                                </div>
-                            </div>
-                            <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #f59e0b' }}>
-                                <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                                    <Clock size={20} color="#f59e0b" />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{admissions.filter(a => a.status === 'Pending').length}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Pending</div>
-                                </div>
-                            </div>
-                            <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid #8b5cf6' }}>
-                                <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '0.75rem', borderRadius: '0.75rem' }}>
-                                    <Calculator size={20} color="#8b5cf6" />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
-                                        {(() => {
-                                            const scores = admissions.map(a => parseFloat(a.marks12th?.cutoff)).filter(c => !isNaN(c) && c > 0);
-                                            return scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : '0.00';
-                                        })()}
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Avg. Cutoff</div>
-                                </div>
-                            </div>
+            {user.role === 'student' ? (
+                <div className="no-print">
+                    {studentAdmission ? (
+                        <div className="glass-card" style={{ padding: '4rem', textAlign: 'center' }}>
+                            <ShieldCheck size={64} color="var(--primary)" style={{ marginBottom: '1.5rem' }} />
+                            <h2 style={{ fontSize: '3rem', fontWeight: 900 }}>{studentAdmission.studentName}</h2>
+                            <p style={{ fontSize: '1.5rem', color: 'var(--text-light)', marginBottom: '3rem' }}>App ID: {studentAdmission.appNumber} | Status: <strong style={{ color: studentAdmission.status === 'Approved' ? '#059669' : '#d97706' }}>{studentAdmission.status?.toUpperCase() || 'IN REVIEW'}</strong></p>
+                            <button onClick={() => setSelectedAdmission(studentAdmission)} className="btn btn-primary" style={{ width: '100%', padding: '2rem', fontSize: '1.5rem' }}>
+                                <Printer size={24} /> Download Official Printed Form
+                            </button>
                         </div>
+                    ) : (
+                        <div className="glass-card" style={{ padding: '5rem', textAlign: 'center' }}>
+                            <h2>No Enquiry Found</h2>
+                            <button onClick={() => navigate('/enquiry')} className="btn btn-primary" style={{ marginTop: '2rem' }}>Apply for Admission</button>
+                        </div>
+                    )}
+                </div>
+            ) : user.role === 'counselor' ? (
+                /* STAFF ONLY CHATBOT INTERFACE */
+                <StaffDashboardChatbot admissions={admissions} onUpdateRemarks={handleUpdateRemarks} />
+            ) : (
+                <div className="no-print">
+                    {/* ... Admin View ... */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+                        <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '10px solid var(--primary)' }}>
+                            <div style={{ fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.8rem' }}>TOTAL APPLICANTS</div>
+                            <div style={{ fontSize: '3rem', fontWeight: 900 }}>{totalCount}</div>
+                        </div>
+                        <div className="glass-card" style={{ padding: '1.5rem', borderLeft: '10px solid #8b5cf6' }}>
+                            <div style={{ fontWeight: 900, color: 'var(--text-muted)', fontSize: '0.8rem' }}>AVG ENQ. CUTOFF</div>
+                            <div style={{ fontSize: '3rem', fontWeight: 900 }}>{getAvgCutoff()}</div>
+                        </div>
+                    </div>
 
-                        {/* Live Feed Analytics */}
-                        <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                <h3 className="font-outfit" style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <div style={{ width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', animation: 'pulse 1.5s infinite' }} />
-                                    Live Admission Analytics
-                                </h3>
-                                <div style={{ display: 'flex', gap: '0.4rem', background: '#f1f5f9', padding: '0.25rem', borderRadius: '0.5rem', flexWrap: 'wrap' }}>
-                                    {['districts', 'gender', 'quota', 'transport', 'cutoff'].map(view => (
-                                        <button
-                                            key={view}
-                                            onClick={() => setStatView(view)}
-                                            style={{
-                                                padding: '0.4rem 0.8rem',
-                                                fontSize: '0.7rem',
-                                                fontWeight: '700',
-                                                border: 'none',
-                                                background: statView === view ? '#fff' : 'transparent',
-                                                borderRadius: '0.4rem',
-                                                cursor: 'pointer',
-                                                boxShadow: statView === view ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
-                                                color: statView === view ? 'var(--primary)' : 'var(--text-muted)',
-                                                textTransform: 'capitalize'
-                                            }}
-                                        >
-                                            {view}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
-                                {statView === 'districts' && (
-                                    Object.entries(admissions.reduce((acc, a) => {
-                                        const d = a.district || 'Other';
-                                        acc[d] = (acc[d] || 0) + 1;
-                                        return acc;
-                                    }, {}))
-                                        .sort((a, b) => b[1] - a[1])
-                                        .map(([name, count]) => (
-                                            <div key={name} style={{
-                                                background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
-                                                padding: '1.25rem',
-                                                borderRadius: '1.25rem',
-                                                textAlign: 'center',
-                                                border: '1px solid #e2e8f0',
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: '0.25rem',
-                                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
-                                            }}>
-                                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{name}</div>
-                                                <div style={{ fontSize: '1.75rem', fontWeight: '900', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
-                                                    <MapPin size={16} style={{ opacity: 0.5 }} />
-                                                    {count}
-                                                </div>
-                                            </div>
-                                        ))
-                                )}
-                                {statView === 'gender' && (
-                                    <>
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
-                                            padding: '1.5rem',
-                                            borderRadius: '1.5rem',
-                                            textAlign: 'center',
-                                            border: '1px solid #7dd3fc',
-                                            boxShadow: '0 10px 15px -3px rgba(14, 165, 233, 0.1)'
-                                        }}>
-                                            <div style={{ fontSize: '0.8rem', color: '#0369a1', fontWeight: '800', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>MALE</div>
-                                            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#0c4a6e', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                                <Users size={24} />
-                                                {admissions.filter(a => (a.gender || '').toUpperCase() === 'MALE').length}
-                                            </div>
-                                        </div>
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)',
-                                            padding: '1.5rem',
-                                            borderRadius: '1.5rem',
-                                            textAlign: 'center',
-                                            border: '1px solid #f9a8d4',
-                                            boxShadow: '0 10px 15px -3px rgba(219, 39, 119, 0.1)'
-                                        }}>
-                                            <div style={{ fontSize: '0.8rem', color: '#9d174d', fontWeight: '800', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>FEMALE</div>
-                                            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#700d2f', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                                <Users size={24} />
-                                                {admissions.filter(a => (a.gender || '').toUpperCase() === 'FEMALE').length}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                                {statView === 'quota' && (
-                                    <>
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-                                            padding: '1.5rem',
-                                            borderRadius: '1.5rem',
-                                            textAlign: 'center',
-                                            border: '1px solid #86efac',
-                                            boxShadow: '0 10px 15px -3px rgba(34, 197, 94, 0.1)'
-                                        }}>
-                                            <div style={{ fontSize: '0.8rem', color: '#166534', fontWeight: '800', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>GOVERNMENT</div>
-                                            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#064e3b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                                <Award size={24} />
-                                                {admissions.filter(a => (a.quota || '').toUpperCase() === 'GOVERNMENT').length}
-                                            </div>
-                                        </div>
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #fef9c3 0%, #fef08a 100%)',
-                                            padding: '1.5rem',
-                                            borderRadius: '1.5rem',
-                                            textAlign: 'center',
-                                            border: '1px solid #fde047',
-                                            boxShadow: '0 10px 15px -3px rgba(234, 179, 8, 0.1)'
-                                        }}>
-                                            <div style={{ fontSize: '0.8rem', color: '#854d0e', fontWeight: '800', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>MANAGEMENT</div>
-                                            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#713f12', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                                <Briefcase size={24} />
-                                                {admissions.filter(a => (a.quota || '').toUpperCase() === 'MANAGEMENT').length}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                                {statView === 'transport' && (
-                                    <>
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
-                                            padding: '1.5rem',
-                                            borderRadius: '1.5rem',
-                                            textAlign: 'center',
-                                            border: '1px solid #bfdbfe',
-                                            boxShadow: '0 10px 15px -3px rgba(59, 130, 246, 0.1)'
-                                        }}>
-                                            <div style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: '800', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>BUS TRANSPORT</div>
-                                            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#1e3a8a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                                <Smartphone size={24} />
-                                                {admissions.filter(a => (a.bus || '').toUpperCase() === 'YES').length}
-                                            </div>
-                                        </div>
-                                        <div style={{
-                                            background: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)',
-                                            padding: '1.5rem',
-                                            borderRadius: '1.5rem',
-                                            textAlign: 'center',
-                                            border: '1px solid #ddd6fe',
-                                            boxShadow: '0 10px 15px -3px rgba(139, 92, 246, 0.1)'
-                                        }}>
-                                            <div style={{ fontSize: '0.8rem', color: '#5b21b6', fontWeight: '800', marginBottom: '0.5rem', letterSpacing: '0.05em' }}>HOSTELLER</div>
-                                            <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#4c1d95', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                                <GraduationCap size={24} />
-                                                {admissions.filter(a => (a.hostel || '').toUpperCase() === 'YES').length}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                                {statView === 'cutoff' && (
-                                    <div style={{
-                                        gridColumn: 'span 2',
-                                        background: 'linear-gradient(135deg, #f5f3ff 0%, #ddd6fe 100%)',
-                                        padding: '2rem',
-                                        borderRadius: '1.5rem',
-                                        textAlign: 'center',
-                                        border: '1px solid #c4b5fd',
-                                        boxShadow: '0 10px 15px -3px rgba(139, 92, 246, 0.1)'
-                                    }}>
-                                        <div style={{ fontSize: '0.9rem', color: '#5b21b6', fontWeight: '800', marginBottom: '1rem', letterSpacing: '0.1em' }}>AGGREGATE CUTOFF AVERAGE (12TH)</div>
-                                        <div style={{ fontSize: '4rem', fontWeight: '950', color: '#2e1065', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
-                                            <Calculator size={48} style={{ opacity: 0.3 }} />
-                                            {(() => {
-                                                const scores = admissions.map(a => parseFloat(a.marks12th?.cutoff)).filter(c => !isNaN(c) && c > 0);
-                                                return scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : '0.00';
-                                            })()}
-                                        </div>
-                                        <div style={{ fontSize: '0.8rem', color: '#6d28d9', marginTop: '0.5rem', fontWeight: '600' }}>
-                                            Based on {admissions.map(a => parseFloat(a.marks12th?.cutoff)).filter(c => !isNaN(c) && c > 0).length} valid submissions
-                                        </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+                        <div className="glass-card" style={{ padding: '2rem', background: '#fff' }}>
+                            <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>Regional Count & %</h3>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                                {getStats('district').map(s => (
+                                    <div key={s.label} style={{ flex: 1, minWidth: '120px', padding: '1rem', background: '#f8fafc', borderRadius: '1rem', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: '0.7rem', fontWeight: 900 }}>{s.label.toUpperCase()}</div>
+                                        <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{s.percent}%</div>
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.count} Students</div>
                                     </div>
-                                )}
+                                ))}
                             </div>
                         </div>
                     </div>
 
-                    <div className="glass-card" style={{ padding: '2rem', overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-                            <div style={{ position: 'relative', flex: 1 }}>
-                                <Search style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} size={18} />
-                                <input
-                                    type="text"
-                                    className="input-field"
-                                    placeholder="Search by Name, Phone, School, App No..."
-                                    style={{ paddingLeft: '3rem' }}
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
+                    <div className="glass-card" style={{ padding: '2.5rem', background: '#fff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                {['All', 'Pending', 'Approved'].map(tab => (
+                                    <button key={tab} onClick={() => setStatusFilter(tab)} className="btn" style={{ padding: '0.5rem 1.5rem', fontSize: '0.8rem', background: statusFilter === tab ? 'var(--primary)' : '#f1f5f9', color: statusFilter === tab ? '#fff' : 'var(--text)' }}>{tab}</button>
+                                ))}
                             </div>
-                            <button className="btn" style={{ background: 'var(--glass-bg)' }}>
-                                <Download size={18} /> Export CSV
-                            </button>
+                            <div style={{ position: 'relative', width: '300px' }}>
+                                <Search style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} size={16} />
+                                <input type="text" placeholder="Search records..." className="input-field" style={{ paddingLeft: '3rem' }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            </div>
                         </div>
-
                         <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
-                                    <tr style={{ background: 'var(--glass-bg)', color: 'var(--text-muted)', fontSize: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        <th style={{ padding: '1rem' }}>App No.</th>
-                                        <th style={{ padding: '1rem' }}>Student Details</th>
-                                        <th style={{ padding: '1rem' }}>Course & School</th>
-                                        <th style={{ padding: '1rem' }}>Contact</th>
-                                        <th style={{ padding: '1rem' }}>Status</th>
-                                        <th style={{ padding: '1rem' }}>Action</th>
+                                    <tr style={{ textAlign: 'left', borderBottom: '2px solid #f1f5f9' }}>
+                                        <th style={{ padding: '1rem' }}>APP ID</th>
+                                        <th style={{ padding: '1rem' }}>NAME</th>
+                                        <th style={{ padding: '1rem' }}>LOCATION</th>
+                                        <th style={{ padding: '1rem' }}>STATUS</th>
+                                        <th style={{ padding: '1rem', textAlign: 'center' }}>VIEW</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredData.length > 0 ? filteredData.map((item) => (
-                                        <tr key={item.id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'background 0.2s', cursor: 'pointer' }} onClick={() => setSelectedAdmission(item)}>
-                                            <td style={{ padding: '1rem', color: 'var(--primary)', fontWeight: 'bold' }}>{item.appNumber || 'N/A'}</td>
-                                            <td style={{ padding: '1rem' }}>
-                                                <div style={{ fontWeight: '600' }}>{item.studentName}</div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>DOB: {item.dob} | {item.gender}</div>
-                                            </td>
-                                            <td style={{ padding: '1rem' }}>
-                                                <div style={{ fontWeight: '500' }}>{item.course}</div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.schoolName}</div>
-                                            </td>
-                                            <td style={{ padding: '1rem' }}>
-                                                <div style={{ fontSize: '0.875rem' }}>{item.phone1}</div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.phone2}</div>
-                                            </td>
-                                            <td style={{ padding: '1rem' }}>
-                                                <span style={{
-                                                    padding: '0.25rem 0.75rem',
-                                                    borderRadius: '1rem',
-                                                    fontSize: '0.75rem',
-                                                    background: item.status === 'Pending' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                                                    color: item.status === 'Pending' ? '#f59e0b' : 'var(--success)',
-                                                    border: `1px solid ${item.status === 'Pending' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'}`
-                                                }}>
-                                                    {item.status}
+                                    {adminFiltered.map(item => (
+                                        <tr key={item.id} style={{ borderBottom: '1px solid #f8fafc' }} className="table-row-hover">
+                                            <td style={{ padding: '1.25rem 1rem', fontWeight: 900, color: 'var(--primary)' }}>{item.appNumber}</td>
+                                            <td style={{ padding: '1.25rem 1rem', fontWeight: 700 }}>{item.studentName}</td>
+                                            <td style={{ padding: '1.25rem 1rem' }}>{item.district}</td>
+                                            <td style={{ padding: '1.25rem 1rem' }}>
+                                                <span style={{ padding: '0.3rem 1rem', borderRadius: '1rem', fontSize: '0.7rem', fontWeight: 900, background: item.status === 'Approved' ? '#dcfce7' : '#fef3c7', color: item.status === 'Approved' ? '#166534' : '#92400e' }}>
+                                                    {item.status?.toUpperCase() || 'PENDING'}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: '1rem' }}>
-                                                <button className="btn" style={{ padding: '0.5rem', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--primary)' }}>
-                                                    <Eye size={16} />
-                                                </button>
+                                            <td style={{ padding: '1.25rem 1rem', textAlign: 'center' }}>
+                                                <button onClick={() => setSelectedAdmission(item)} className="btn" style={{ padding: '0.5rem', background: '#f1f5f9' }}><Eye size={22} /></button>
                                             </td>
                                         </tr>
-                                    )) : (
-                                        <tr>
-                                            <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                                                No admission applications found matching your search.
-                                            </td>
-                                        </tr>
-                                    )}
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                </div>
+            )}
 
-                    {/* Highly Attractive Detail View Modal */}
-                    {selectedAdmission && (
-                        <div style={{
-                            position: 'fixed',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: 'rgba(15, 23, 42, 0.65)',
-                            backdropFilter: 'blur(8px)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 1000,
-                            padding: '1.5rem'
-                        }} onClick={() => setSelectedAdmission(null)}>
-                            <div className="animate-scale-in" style={{
-                                width: '100%',
-                                maxWidth: '1000px',
-                                maxHeight: '95vh',
-                                overflow: 'hidden',
-                                background: '#f8fafc',
-                                borderRadius: '1.5rem',
-                                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                                border: '1px solid rgba(255, 255, 255, 0.3)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                position: 'relative'
-                            }} onClick={e => e.stopPropagation()}>
-
-                                {/* Header Section */}
-                                <div style={{
-                                    padding: '2.5rem',
-                                    background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)',
-                                    color: '#ffffff',
-                                    position: 'relative',
-                                    flexShrink: 0
-                                }}>
-                                    <button
-                                        onClick={() => setSelectedAdmission(null)}
-                                        style={{
-                                            position: 'absolute',
-                                            right: '1.5rem',
-                                            top: '1.5rem',
-                                            background: 'rgba(255, 255, 255, 0.15)',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            color: '#ffffff',
-                                            padding: '0.5rem',
-                                            borderRadius: '50%',
-                                            display: 'flex',
-                                            zIndex: 10
-                                        }}
-                                    >
-                                        <X size={20} />
-                                    </button>
-
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                                        <div style={{
-                                            width: '80px',
-                                            height: '80px',
-                                            background: 'rgba(255, 255, 255, 0.2)',
-                                            borderRadius: '1.25rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            fontSize: '2rem',
-                                            fontWeight: 'bold',
-                                            backdropFilter: 'blur(10px)',
-                                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                                            flexShrink: 0
-                                        }}>
-                                            {selectedAdmission.studentName ? selectedAdmission.studentName.charAt(0).toUpperCase() : '?'}
-                                        </div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-                                                <h2 className="font-outfit" style={{
-                                                    fontSize: '2.5rem',
-                                                    margin: 0,
-                                                    fontWeight: '700',
-                                                    color: '#ffffff',
-                                                    letterSpacing: '-0.02em',
-                                                    lineHeight: '1.2'
-                                                }}>
-                                                    {selectedAdmission.studentName}
-                                                </h2>
-                                                <span style={{
-                                                    padding: '0.4rem 0.8rem',
-                                                    borderRadius: '2rem',
-                                                    fontSize: '0.85rem',
-                                                    background: 'rgba(255, 255, 255, 0.15)',
-                                                    color: '#ffffff',
-                                                    fontWeight: '600',
-                                                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                                                    letterSpacing: '0.05em'
-                                                }}>{selectedAdmission.appNumber}</span>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '1.5rem', opacity: '0.9', fontSize: '1rem', flexWrap: 'wrap' }}>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Award size={16} /> {selectedAdmission.course}</span>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapPin size={16} /> {selectedAdmission.institution}</span>
-                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Calendar size={16} /> Applied on {new Date(selectedAdmission.id).toLocaleDateString()}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Main Content Body */}
-                                <div style={{
-                                    flex: 1,
-                                    padding: '2.5rem',
-                                    overflowY: 'auto',
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(2, 1fr)',
-                                    gap: '2.5rem'
-                                }}>
-
-                                    {/* Column 1 */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                                        {/* Personal info card */}
-                                        <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.1rem', color: 'var(--primary)', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                                                <Users size={18} /> Personal Profile
-                                            </h3>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                                                <DetailItem label="Gender" value={selectedAdmission.gender} />
-                                                <DetailItem label="Date of Birth" value={selectedAdmission.dob} />
-                                                <DetailItem label="Community" value={selectedAdmission.community} />
-                                                <DetailItem label="Aadhaar No" value={selectedAdmission.aadhaarNo} />
-                                                <DetailItem label="Annual Income" value={`Rs. ${selectedAdmission.annualIncome}`} />
-                                                <DetailItem label="Quota" value={selectedAdmission.quota} />
-                                            </div>
-                                        </div>
-
-                                        {/* Family info card */}
-                                        <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.1rem', color: 'var(--primary)', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                                                <Users size={18} /> Family Details
-                                            </h3>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                                                <DetailItem label="Father's Name" value={selectedAdmission.fatherName} />
-                                                <DetailItem label="Occupation" value={selectedAdmission.fatherOccupation} />
-                                                <DetailItem label="Mother's Name" value={selectedAdmission.motherName} />
-                                                <DetailItem label="Occupation" value={selectedAdmission.motherOccupation} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Column 2 */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                                        {/* Academic card */}
-                                        <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '1.25rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' }}>
-                                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.1rem', color: 'var(--primary)', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                                                <GraduationCap size={18} /> Academic Excellence
-                                            </h3>
-                                            <DetailItem label="Last School Attended" value={selectedAdmission.schoolName} icon={BookOpen} />
-
-                                            <div style={{ display: 'flex', gap: '2.5rem', marginBottom: '1.5rem' }}>
-                                                <DetailItem label="Board" value={selectedAdmission.boardOfStudy} />
-                                                <DetailItem label="Type" value={selectedAdmission.schoolType} />
-                                                <DetailItem label="Medium" value={selectedAdmission.mediumOfInstruction} />
-                                            </div>
-
-                                            {selectedAdmission.marks12th && (
-                                                <div style={{
-                                                    background: 'linear-gradient(to right, #f0f9ff, #e0f2fe)',
-                                                    padding: '1.25rem',
-                                                    borderRadius: '1rem',
-                                                    border: '1px solid #bae6fd',
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center'
-                                                }}>
-                                                    <div>
-                                                        <div style={{ fontSize: '0.85rem', color: '#0369a1', fontWeight: '600', textTransform: 'uppercase' }}>12th Engineering Cutoff</div>
-                                                        <div style={{ fontSize: '0.75rem', color: '#0ea5e9' }}>Phys / 2 + Chem / 2 + Maths</div>
-                                                    </div>
-                                                    <div style={{ fontSize: '2.25rem', fontWeight: '800', color: 'var(--primary)' }}>{selectedAdmission.marks12th.cutoff}</div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Contact & Misc card */}
-                                        <div style={{ background: '#fff', padding: '1.5rem', borderRadius: '1.25rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.1rem', color: 'var(--primary)', marginBottom: '1.5rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-                                                <Smartphone size={18} /> Communication & Utilities
-                                            </h3>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                                                <DetailItem label="Student Phone" value={selectedAdmission.phone1} />
-                                                <DetailItem label="Parent Phone" value={selectedAdmission.phone2} />
-                                                <div style={{ gridColumn: 'span 2' }}>
-                                                    <DetailItem label="Permanent Address" value={`${selectedAdmission.address}, ${selectedAdmission.pincode}`} icon={MapPin} />
-                                                </div>
-                                                <DetailItem label="Hostel" value={selectedAdmission.hostel} />
-                                                <DetailItem label="College Bus" value={selectedAdmission.bus === 'YES' ? `Yes at ${selectedAdmission.busPoint}` : 'No'} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Footer Action Bar */}
-                                <div style={{
-                                    padding: '1.5rem 2.5rem',
-                                    background: '#fff',
-                                    borderTop: '1px solid #f1f5f9',
-                                    display: 'flex',
-                                    justifyContent: 'flex-end',
-                                    gap: '1rem',
-                                    alignItems: 'center'
-                                }}>
-                                    <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                        <div style={{
-                                            width: '10px',
-                                            height: '10px',
-                                            borderRadius: '50%',
-                                            background: selectedAdmission.status === 'Approved' ? 'var(--success)' : '#f59e0b'
-                                        }}></div>
-                                        Current Status: <span style={{ fontWeight: '600', color: selectedAdmission.status === 'Approved' ? 'var(--success)' : '#f59e0b' }}>{selectedAdmission.status}</span>
-                                    </div>
-
-                                    <button
-                                        onClick={() => setSelectedAdmission(null)}
-                                        className="btn"
-                                        style={{ background: '#f1f5f9', color: '#475569', padding: '0.8rem 1.5rem' }}
-                                    >
-                                        Close
-                                    </button>
-
-                                    <button
-                                        className="btn btn-primary"
-                                        style={{
-                                            padding: '0.8rem 2rem',
-                                            fontSize: '1rem',
-                                            boxShadow: selectedAdmission.status === 'Approved' ? 'none' : '0 10px 15px -3px rgba(30, 58, 138, 0.3)'
-                                        }}
-                                        onClick={() => {
-                                            const updatedAdmissions = admissions.map(a =>
-                                                a.id === selectedAdmission.id ? { ...a, status: 'Approved' } : a
-                                            );
-                                            localStorage.setItem('admissions', JSON.stringify(updatedAdmissions));
-                                            setAdmissions(updatedAdmissions);
-                                            setSelectedAdmission(prev => ({ ...prev, status: 'Approved' }));
-                                        }}
-                                        disabled={selectedAdmission.status === 'Approved'}
-                                    >
-                                        {selectedAdmission.status === 'Approved' ? (
-                                            <><CheckCircle size={18} /> Application Approved</>
-                                        ) : (
-                                            'Approve Application'
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+            {/* MODAL LAYER */}
+            {selectedAdmission && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(8px)',
+                    zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem'
+                }} onClick={() => setSelectedAdmission(null)}>
+                    {user.role === 'student' ? (
+                        <StudentPrintableForm admission={selectedAdmission} onClose={() => setSelectedAdmission(null)} />
+                    ) : (
+                        <AdminDetailDossier admission={selectedAdmission} onClose={() => setSelectedAdmission(null)} onApprove={handleApprove} />
                     )}
-                </>
+                </div>
             )}
         </div>
     );
