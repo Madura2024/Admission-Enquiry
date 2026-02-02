@@ -10,10 +10,18 @@ const Login = ({ onLogin, isSidePanel }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        if (username && password) {
-            onLogin({ username, role });
+        if (role === 'student') {
+            if (appNumber.trim()) {
+                onLogin({ username: appNumber, role, appNumber });
+            } else {
+                alert('Please enter your Application Number');
+            }
         } else {
-            alert('Please enter credentials');
+            if (username && password) {
+                onLogin({ username, role });
+            } else {
+                alert('Please enter credentials');
+            }
         }
     };
 
@@ -48,37 +56,56 @@ const Login = ({ onLogin, isSidePanel }) => {
             </div>
 
             <form onSubmit={handleSubmit}>
-                <div className="input-group">
-                    <label className="input-label">Username</label>
-                    <div style={{ position: 'relative' }}>
-                        <User size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <input
-                            type="text"
-                            className="input-field"
-                            style={{ paddingLeft: '3rem' }}
-                            placeholder="Enter Username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                        />
+                {role === 'student' ? (
+                    <div className="input-group" style={{ marginBottom: '1.5rem' }}>
+                        <label className="input-label">Application Number</label>
+                        <div style={{ position: 'relative' }}>
+                            <Hash size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                className="input-field"
+                                style={{ paddingLeft: '3rem' }}
+                                placeholder="KITE-2026-XXXX"
+                                value={appNumber}
+                                onChange={(e) => setAppNumber(e.target.value)}
+                            />
+                        </div>
                     </div>
-                </div>
-                <div className="input-group" style={{ marginBottom: '1.5rem' }}>
-                    <label className="input-label">Password</label>
-                    <div style={{ position: 'relative' }}>
-                        <ShieldCheck size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <input
-                            type="password"
-                            className="input-field"
-                            style={{ paddingLeft: '3rem' }}
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                    </div>
-                </div>
+                ) : (
+                    <>
+                        <div className="input-group">
+                            <label className="input-label">Username</label>
+                            <div style={{ position: 'relative' }}>
+                                <User size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    style={{ paddingLeft: '3rem' }}
+                                    placeholder="Enter Username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="input-group" style={{ marginBottom: '1.5rem' }}>
+                            <label className="input-label">Password</label>
+                            <div style={{ position: 'relative' }}>
+                                <ShieldCheck size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                <input
+                                    type="password"
+                                    className="input-field"
+                                    style={{ paddingLeft: '3rem' }}
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </>
+                )}
 
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }}>
-                    <LogIn size={18} /> Login as {role.charAt(0).toUpperCase() + role.slice(1)}
+                    <LogIn size={18} /> {role === 'student' ? 'Track Application Status' : `Login as ${role.charAt(0).toUpperCase() + role.slice(1)}`}
                 </button>
             </form>
 

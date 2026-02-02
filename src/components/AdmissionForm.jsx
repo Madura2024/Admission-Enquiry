@@ -4,6 +4,16 @@ import { Save, LogOut, FileText, ClipboardList, GraduationCap, School, Calculato
 import SCHOOL_LIST from '../data/schools.json';
 
 
+const TAMILNADU_DISTRICTS = [
+    "Ariyalur", "Chengalpattu", "Chennai", "Coimbatore", "Cuddalore", "Dharmapuri",
+    "Dindigul", "Erode", "Kallakurichi", "Kancheepuram", "Karur", "Krishnagiri",
+    "Madurai", "Mayiladuthurai", "Nagapattinam", "Namakkal", "Nilgiris", "Perambalur",
+    "Pudukkottai", "Ramanathapuram", "Ranipet", "Salem", "Sivaganga", "Tenkasi",
+    "Thanjavur", "Theni", "Thoothukudi", "Tiruchirappalli", "Tirunelveli", "Tirupathur",
+    "Tiruppur", "Tiruvallur", "Tiruvannamalai", "Tiruvarur", "Vellore", "Viluppuram",
+    "Virudhunagar"
+];
+
 const AdmissionForm = ({ user, onLogout, isSimplified }) => {
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
@@ -47,6 +57,11 @@ const AdmissionForm = ({ user, onLogout, isSimplified }) => {
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const dropdownRef = useRef(null);
 
+    const [districtSearchQuery, setDistrictSearchQuery] = useState('');
+    const [showDistrictDropdown, setShowDistrictDropdown] = useState(false);
+    const [districtSelectedIndex, setDistrictSelectedIndex] = useState(-1);
+    const districtDropdownRef = useRef(null);
+
     const filteredSchools = schoolSearchQuery.trim() === ''
         ? []
         : SCHOOL_LIST.filter(school =>
@@ -60,10 +75,26 @@ const AdmissionForm = ({ user, onLogout, isSimplified }) => {
             return a.localeCompare(b);
         }).slice(0, 15);
 
+    const filteredDistricts = districtSearchQuery.trim() === ''
+        ? TAMILNADU_DISTRICTS
+        : TAMILNADU_DISTRICTS.filter(d =>
+            d.toLowerCase().includes(districtSearchQuery.toLowerCase())
+        ).sort((a, b) => {
+            const query = districtSearchQuery.toLowerCase();
+            const aStarts = a.toLowerCase().startsWith(query);
+            const bStarts = b.toLowerCase().startsWith(query);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return a.localeCompare(b);
+        });
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setShowSchoolDropdown(false);
+            }
+            if (districtDropdownRef.current && !districtDropdownRef.current.contains(event.target)) {
+                setShowDistrictDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -88,7 +119,22 @@ const AdmissionForm = ({ user, onLogout, isSimplified }) => {
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+
+        setFormData(prev => {
+            let nextState = { ...prev, [name]: value };
+
+            // Logic: if transport (bus) is YES, hosteller MUST BE NO
+            if (name === 'bus' && value === 'YES') {
+                nextState.hostel = 'NO';
+            }
+            // Logic: if hosteller is YES, transport (bus) MUST BE NO
+            else if (name === 'hostel' && value === 'YES') {
+                nextState.bus = 'NO';
+                nextState.busPoint = '';
+            }
+
+            return nextState;
+        });
     };
 
     const handleNestedChange = (category, field, value) => {
@@ -100,22 +146,26 @@ const AdmissionForm = ({ user, onLogout, isSimplified }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const year = new Date().getFullYear();
-        const random = Math.floor(1000 + Math.random() * 9000);
-        const appNo = `APP-${year}-${random}`;
 
         const existingData = JSON.parse(localStorage.getItem('admissions') || '[]');
+
+        // Generate Sequential Application Number: KITE-2026-XXXX
+        const year = new Date().getFullYear();
+        const nextNumber = (existingData.length + 1).toString().padStart(4, '0');
+        const appNo = `KITE-${year}-${nextNumber}`;
+
         const newData = {
             ...formData,
             id: Date.now(),
             appNumber: appNo,
             studentUsername: user.username,
-            status: 'Pending'
+            status: 'Pending',
+            submittedAt: new Date().toISOString(),
+            approvedAt: null
         };
 
         localStorage.setItem('admissions', JSON.stringify([...existingData, newData]));
         setSubmittedAppNumber(appNo);
-        // alert('Form submitted successfully! Your Application Number is: ' + appNo);
     };
 
     if (submittedAppNumber) {
@@ -135,12 +185,14 @@ const AdmissionForm = ({ user, onLogout, isSimplified }) => {
 
                     <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '2rem' }}>Please save this number for future reference.</p>
 
-                    <button onClick={() => window.location.reload()} className="btn btn-primary" style={{ width: '100%' }}>
-                        Fill Another Form
-                    </button>
-                    <button onClick={onLogout} className="btn" style={{ width: '100%', marginTop: '1rem', background: 'var(--glass-bg)' }}>
-                        Logout
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <button onClick={() => window.location.href = '/dashboard'} className="btn btn-primary" style={{ width: '100%', padding: '1rem' }}>
+                            Go to My Dashboard
+                        </button>
+                        <button onClick={() => window.location.href = '/'} className="btn" style={{ width: '100%', padding: '1rem', background: 'rgba(30, 58, 138, 0.1)', color: 'var(--primary)', fontWeight: '600' }}>
+                            Back to Home
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -257,9 +309,90 @@ const AdmissionForm = ({ user, onLogout, isSimplified }) => {
                                 <label className="input-label">Community</label>
                                 <input type="text" name="community" className="input-field" placeholder="OC/BC/BCM/MBC/SC/ST" value={formData.community} onChange={handleChange} />
                             </div>
-                            <div className="input-group">
+                            <div className="input-group" style={{ position: 'relative' }} ref={districtDropdownRef}>
                                 <label className="input-label">District</label>
-                                <input type="text" name="district" className="input-field" placeholder="E.g. Coimbatore" value={formData.district} onChange={handleChange} />
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type="text"
+                                        className="input-field"
+                                        placeholder="Search district..."
+                                        value={districtSearchQuery || formData.district}
+                                        onChange={(e) => {
+                                            setDistrictSearchQuery(e.target.value);
+                                            setFormData(prev => ({ ...prev, district: e.target.value }));
+                                            setShowDistrictDropdown(true);
+                                            setDistrictSelectedIndex(-1);
+                                        }}
+                                        onFocus={() => setShowDistrictDropdown(true)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                setDistrictSelectedIndex(prev => (prev < filteredDistricts.length - 1 ? prev + 1 : prev));
+                                            } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                setDistrictSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
+                                            } else if (e.key === 'Enter' && districtSelectedIndex >= 0) {
+                                                e.preventDefault();
+                                                const district = filteredDistricts[districtSelectedIndex];
+                                                setFormData(prev => ({ ...prev, district: district }));
+                                                setDistrictSearchQuery(district);
+                                                setShowDistrictDropdown(false);
+                                            } else if (e.key === 'Escape') {
+                                                setShowDistrictDropdown(false);
+                                            }
+                                        }}
+                                    />
+                                    <div style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '0.5rem', alignItems: 'center', pointerEvents: 'none' }}>
+                                        <Search size={18} color="var(--text-muted)" />
+                                        <ChevronDown size={14} color="var(--text-muted)" />
+                                    </div>
+                                </div>
+
+                                {showDistrictDropdown && (
+                                    <div className="glass-card" style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        right: 0,
+                                        zIndex: 100,
+                                        marginTop: '0.5rem',
+                                        maxHeight: '200px',
+                                        overflowY: 'auto',
+                                        padding: '0.5rem',
+                                        border: '1px solid var(--glass-border)',
+                                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.25)',
+                                        background: '#fff'
+                                    }}>
+                                        {filteredDistricts.length > 0 ? (
+                                            filteredDistricts.map((district, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="dropdown-item"
+                                                    style={{
+                                                        padding: '0.75rem 1rem',
+                                                        borderRadius: '0.5rem',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                        background: districtSelectedIndex === index ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.75rem'
+                                                    }}
+                                                    onClick={() => {
+                                                        setFormData(prev => ({ ...prev, district: district }));
+                                                        setDistrictSearchQuery(''); // Clear search query to show selected value via formData.district
+                                                        setShowDistrictDropdown(false);
+                                                    }}
+                                                    onMouseEnter={() => setDistrictSelectedIndex(index)}
+                                                >
+                                                    <span style={{ fontSize: '0.9rem' }}>{district}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}> No districts found </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
