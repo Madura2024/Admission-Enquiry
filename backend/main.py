@@ -7,6 +7,8 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Header, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import requests
@@ -314,6 +316,33 @@ async def get_admissions(x_api_key: str = Depends(verify_api_key)):
     finally:
         cursor.close()
         conn.close()
+
+# --- Static Files (Serve Frontend) ---
+# Try to find the built frontend (dist folder)
+dist_path = os.path.join(os.path.dirname(__file__), "..", "dist")
+if not os.path.exists(dist_path):
+    # Fallback for different deployment structures
+    dist_path = os.path.join(os.getcwd(), "dist")
+
+if os.path.exists(dist_path):
+    print(f"--- SERVING STATIC FILES FROM: {dist_path} ---")
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Exclude API calls from catch-all
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi"):
+            raise HTTPException(status_code=404)
+        
+        # Check if file exists in dist
+        file_path = os.path.join(dist_path, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        
+        # For SPA routes (like /enquiry), serve index.html
+        return FileResponse(os.path.join(dist_path, "index.html"))
+else:
+    print("--- WARNING: dist folder not found. Only API routes will be active. ---")
 
 if __name__ == "__main__":
     import uvicorn
