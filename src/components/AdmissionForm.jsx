@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Save, LogOut, FileText, ClipboardList, GraduationCap, School, Calculator, CreditCard, Search, X, ChevronDown } from 'lucide-react';
 
 import SCHOOL_LIST from '../data/schools.json';
+import { API_CONFIG } from '../config';
 
 
 const TAMILNADU_DISTRICTS = [
@@ -73,7 +74,7 @@ const AdmissionForm = ({ user, onLogout, isSimplified }) => {
             if (aStarts && !bStarts) return -1;
             if (!aStarts && bStarts) return 1;
             return a.localeCompare(b);
-        }).slice(0, 15);
+        }).slice(0, 100);
 
     const filteredDistricts = districtSearchQuery.trim() === ''
         ? TAMILNADU_DISTRICTS
@@ -144,28 +145,51 @@ const AdmissionForm = ({ user, onLogout, isSimplified }) => {
         }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
-        const existingData = JSON.parse(localStorage.getItem('admissions') || '[]');
-
-        // Generate Sequential Application Number: KITE-2026-XXXX
+        // Generate more robust Application Number to avoid collisions
         const year = new Date().getFullYear();
-        const nextNumber = (existingData.length + 1).toString().padStart(4, '0');
-        const appNo = `KITE-${year}-${nextNumber}`;
+        const randomStr = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+        const appNo = `KITE-${year}-${randomStr}`;
 
         const newData = {
             ...formData,
-            id: Date.now(),
             appNumber: appNo,
-            studentUsername: user.username,
+            studentUsername: user?.username || 'Guest',
             status: 'Pending',
-            submittedAt: new Date().toISOString(),
-            approvedAt: null
+            submittedAt: new Date().toISOString()
         };
 
-        localStorage.setItem('admissions', JSON.stringify([...existingData, newData]));
-        setSubmittedAppNumber(appNo);
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}/admission`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': API_CONFIG.API_KEY
+                },
+                body: JSON.stringify(newData)
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 409) {
+                    alert('Submission Error: Application number already exists. Please try submitting again.');
+                } else {
+                    throw new Error(result.detail || 'Failed to submit to backend');
+                }
+                return;
+            }
+
+            // Success: Update local storage for fallback
+            const existingData = JSON.parse(localStorage.getItem('admissions') || '[]');
+            localStorage.setItem('admissions', JSON.stringify([...existingData, newData]));
+            setSubmittedAppNumber(appNo);
+        } catch (error) {
+            console.error('Submission error:', error);
+            alert(`Error: ${error.message}. Please ensure the backend server is running.`);
+        }
     };
 
     if (submittedAppNumber) {

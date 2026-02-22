@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Users, Search, Download, CheckCircle, Clock, Eye, Smartphone, GraduationCap, Clipboard, X, Briefcase, MapPin, Calendar, Award, BookOpen, Calculator, Printer, ShieldCheck, Home, User, Phone, Map, School, Filter, PieChart, TrendingUp, Send, MessageSquare, UserCheck, Bus } from 'lucide-react';
+import { LogOut, Users, Search, Download, CheckCircle, Clock, Eye, Smartphone, GraduationCap, Clipboard, X, Briefcase, MapPin, Calendar, Award, BookOpen, Calculator, Printer, ShieldCheck, Home, User, Phone, Map, School, Filter, PieChart, TrendingUp, Send, MessageSquare, UserCheck, Bus, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { API_CONFIG } from '../config';
+import SpreadsheetView from './SpreadsheetView';
 
 // --- Sub-Components ---
 
@@ -52,7 +54,8 @@ const StaffDashboardChatbot = ({ admissions, onUpdateRemarks }) => {
                 setMessages(prev => [...prev, {
                     role: 'ai',
                     text: `Found Record for ${student.studentName}.`,
-                    data: student
+                    appNumber: student.appNumber,
+                    data: student // Kept for backward compat/fallback
                 }]);
             } else {
                 setMessages(prev => [...prev, { role: 'ai', text: `No record found for ID: ${userMsg}. Please verify the application format (e.g., APP-2026-6138).` }]);
@@ -65,7 +68,7 @@ const StaffDashboardChatbot = ({ admissions, onUpdateRemarks }) => {
     const handleAddRemark = () => {
         if (!remarkInput.trim() || !lastFoundStudent) return;
 
-        onUpdateRemarks(lastFoundStudent.id, remarkInput.trim());
+        onUpdateRemarks(lastFoundStudent.id, remarkInput.trim(), lastFoundStudent.appNumber);
         setMessages(prev => [...prev, { role: 'ai', text: `Remark successfully cataloged for ${lastFoundStudent.studentName}: "${remarkInput.trim()}"` }]);
 
         // Update local last found student object to show the new remark immediately if searched again
@@ -86,53 +89,71 @@ const StaffDashboardChatbot = ({ admissions, onUpdateRemarks }) => {
 
             {/* Chat area */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {messages.map((m, i) => (
-                    <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                        <div style={{
-                            padding: '1rem 1.5rem',
-                            borderRadius: '1.25rem',
-                            background: m.role === 'user' ? 'var(--primary)' : '#f1f5f9',
-                            color: m.role === 'user' ? '#fff' : 'var(--text)',
-                            fontSize: '1rem',
-                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
-                        }}>
-                            {m.text}
-                        </div>
+                {messages.map((m, i) => {
+                    // Reactive Data Lookup: Always find the latest data from props based on application number
+                    const currentData = m.appNumber ? admissions.find(a => a.appNumber.toUpperCase() === m.appNumber.toUpperCase()) : m.data;
 
-                        {m.data && (
-                            <div className="glass-card" style={{ marginTop: '1rem', padding: '1.5rem', background: '#fff', border: '1px solid #e2e8f0', minWidth: '300px' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    <DetailItem label="Student" value={m.data.studentName} icon={User} />
-                                    <DetailItem label="App No" value={m.data.appNumber} icon={Clipboard} />
-                                    <DetailItem label="Status" value={m.data.status || 'Pending'} icon={CheckCircle} />
-                                    <DetailItem label="Course" value={m.data.course} icon={BookOpen} />
-                                </div>
-
-                                {m.data.remarks && (
-                                    <div style={{ marginTop: '1rem', padding: '1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.75rem' }}>
-                                        <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#92400e' }}>CURRENT REMARKS</label>
-                                        <div style={{ fontSize: '0.9rem', color: '#78350f', marginTop: '0.25rem' }}>{m.data.remarks}</div>
-                                    </div>
-                                )}
-
-                                <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block' }}>Update/Add Remarks</label>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        <input
-                                            type="text"
-                                            className="input-field"
-                                            placeholder="Type new remark..."
-                                            style={{ flex: 1, padding: '0.5rem 1rem' }}
-                                            value={remarkInput}
-                                            onChange={(e) => setRemarkInput(e.target.value)}
-                                        />
-                                        <button onClick={handleAddRemark} className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>Update</button>
-                                    </div>
-                                </div>
+                    return (
+                        <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                            <div style={{
+                                padding: '1rem 1.5rem',
+                                borderRadius: '1.25rem',
+                                background: m.role === 'user' ? 'var(--primary)' : '#f1f5f9',
+                                color: m.role === 'user' ? '#fff' : 'var(--text)',
+                                fontSize: '1rem',
+                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                            }}>
+                                {m.text}
                             </div>
-                        )}
-                    </div>
-                ))}
+
+                            {currentData && (
+                                <div className="glass-card" style={{ marginTop: '1rem', padding: '1.5rem', background: '#fff', border: '1px solid #e2e8f0', minWidth: '300px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                        <DetailItem label="Student" value={currentData.studentName} icon={User} />
+                                        <DetailItem label="App No" value={currentData.appNumber} icon={Clipboard} />
+                                        <DetailItem label="Status" value={currentData.status || 'Pending'} icon={CheckCircle} />
+                                        <DetailItem label="Course" value={currentData.course} icon={BookOpen} />
+                                    </div>
+
+                                    {currentData.remarks && (
+                                        <div style={{ marginTop: '1rem', padding: '1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '0.75rem' }}>
+                                            <label style={{ fontSize: '0.65rem', fontWeight: 900, color: '#92400e' }}>CURRENT REMARKS</label>
+                                            <div style={{ fontSize: '0.9rem', color: '#78350f', marginTop: '0.25rem' }}>{currentData.remarks}</div>
+                                        </div>
+                                    )}
+
+                                    <div style={{ marginTop: '1.5rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block' }}>Update/Add Remarks</label>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <input
+                                                type="text"
+                                                className="input-field"
+                                                placeholder="Type new remark..."
+                                                style={{ flex: 1, padding: '0.5rem 1rem' }}
+                                                value={remarkInput && lastFoundStudent?.appNumber === currentData.appNumber ? remarkInput : ''}
+                                                onChange={(e) => {
+                                                    setLastFoundStudent(currentData);
+                                                    setRemarkInput(e.target.value);
+                                                }}
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    onUpdateRemarks(currentData.id, remarkInput.trim(), currentData.appNumber);
+                                                    setMessages(prev => [...prev, { role: 'ai', text: `Remark successfully updated for ${currentData.studentName}.` }]);
+                                                    setRemarkInput('');
+                                                }}
+                                                className="btn btn-primary"
+                                                style={{ padding: '0.5rem 1rem' }}
+                                            >
+                                                Update
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
                 {isTyping && <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Searching records...</div>}
             </div>
 
@@ -349,12 +370,33 @@ const Dashboard = ({ user, onLogout }) => {
     const [selectedAdmission, setSelectedAdmission] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [isLive, setIsLive] = useState(false);
+    const [viewMode, setViewMode] = useState('analytics'); // 'analytics', 'spreadsheet', or 'live'
     const navigate = useNavigate();
 
     useEffect(() => {
-        const load = () => setAdmissions(JSON.parse(localStorage.getItem('admissions') || '[]'));
+        const load = async () => {
+            try {
+                const response = await fetch(`${API_CONFIG.BASE_URL}/admissions`, {
+                    headers: { 'x-api-key': API_CONFIG.API_KEY }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setAdmissions(data);
+                    setIsLive(true);
+                    localStorage.setItem('admissions', JSON.stringify(data));
+                } else {
+                    setIsLive(false);
+                    setAdmissions(JSON.parse(localStorage.getItem('admissions') || '[]'));
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                setIsLive(false);
+                setAdmissions(JSON.parse(localStorage.getItem('admissions') || '[]'));
+            }
+        };
         load();
-        const interval = setInterval(load, 3000);
+        const interval = setInterval(load, 5000);
         return () => clearInterval(interval);
     }, []);
 
@@ -366,17 +408,37 @@ const Dashboard = ({ user, onLogout }) => {
         if (selectedAdmission?.id === id) setSelectedAdmission({ ...selectedAdmission, status: 'Approved', approvedAt: new Date().toISOString() });
     };
 
-    const handleUpdateRemarks = (id, remarks) => {
-        const data = JSON.parse(localStorage.getItem('admissions') || '[]');
-        const updated = data.map(a => a.id === id ? { ...a, remarks } : a);
-        localStorage.setItem('admissions', JSON.stringify(updated));
-        setAdmissions(updated);
+    const handleUpdateRemarks = async (id, remarks, appNumber) => {
+        // Optimistic UI update: Functional update is safer accurately reflecting latest prop state
+        setAdmissions(prev => prev.map(a => a.id === id ? { ...a, remarks } : a));
+
+        // Persistent Backend update
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}/admission/${appNumber}/remarks`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': API_CONFIG.API_KEY
+                },
+                body: JSON.stringify({ remarks })
+            });
+
+            if (!response.ok) {
+                console.error('Failed to sync remarks to backend');
+                // Revert on failure (optional, but poll will fix it anyway)
+            }
+        } catch (error) {
+            console.error('Error updating remarks:', error);
+        }
     };
 
     const studentAdmission = admissions.find(a => a.appNumber === user.appNumber || a.studentUsername === user.username);
     const adminFiltered = admissions.filter(a => {
         const s = searchTerm.toLowerCase();
-        const matchesSearch = (a.studentName || '').toLowerCase().includes(s) || (a.appNumber || '').toLowerCase().includes(s) || (a.district || '').toLowerCase().includes(s);
+        const matchesSearch = (a.studentName || '').toLowerCase().includes(s) ||
+            (a.appNumber || '').toLowerCase().includes(s) ||
+            (a.district || '').toLowerCase().includes(s) ||
+            (a.remarks || '').toLowerCase().includes(s);
         const matchesStatus = statusFilter === 'All' || (statusFilter === 'Approved' ? a.status === 'Approved' : a.status !== 'Approved');
         return matchesSearch && matchesStatus;
     });
@@ -413,11 +475,81 @@ const Dashboard = ({ user, onLogout }) => {
     return (
         <div className="container animate-fade-in">
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3rem' }} className="no-print">
-                <div>
-                    <h1 className="font-outfit" style={{ fontSize: '2.5rem', color: 'var(--primary)', fontWeight: '900' }}>
-                        {user.role === 'admin' ? 'Strategic Admin Terminal' : (user.role === 'counselor' ? 'Staff Smart Terminal' : 'Student Dashboard')}
-                    </h1>
-                    <p style={{ color: 'var(--text-muted)' }}>Welcome, <strong style={{ color: 'var(--text)' }}>{user.username}</strong></p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    <div>
+                        <h1 className="font-outfit" style={{ fontSize: '2.5rem', color: 'var(--primary)', fontWeight: '900' }}>
+                            {user.role === 'admin' ? 'Strategic Admin Terminal' : (user.role === 'counselor' ? 'Staff Smart Terminal' : 'Student Dashboard')}
+                        </h1>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Welcome, <strong style={{ color: 'var(--text)' }}>{user.username}</strong></p>
+                            <span style={{
+                                padding: '0.25rem 0.75rem',
+                                borderRadius: '2rem',
+                                fontSize: '0.7rem',
+                                fontWeight: 900,
+                                background: isLive ? '#dcfce7' : '#fee2e2',
+                                color: isLive ? '#166534' : '#ef4444',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
+                            }}>
+                                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isLive ? '#22c55e' : '#ef4444', animation: isLive ? 'pulse 2s infinite' : 'none' }}></div>
+                                {isLive ? 'LIVE BACKEND' : 'OFFLINE MODE'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {(user.role === 'admin' || user.role === 'counselor') && (
+                        <div style={{ display: 'flex', background: '#f1f5f9', padding: '0.4rem', borderRadius: '0.75rem', gap: '0.25rem' }}>
+                            <button
+                                onClick={() => setViewMode('analytics')}
+                                style={{
+                                    padding: '0.5rem 1.25rem',
+                                    borderRadius: '0.5rem',
+                                    border: 'none',
+                                    background: viewMode === 'analytics' ? '#fff' : 'transparent',
+                                    color: viewMode === 'analytics' ? 'var(--primary)' : '#64748b',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    boxShadow: viewMode === 'analytics' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                }}
+                            >
+                                <PieChart size={16} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> Analytics
+                            </button>
+                            <button
+                                onClick={() => setViewMode('spreadsheet')}
+                                style={{
+                                    padding: '0.5rem 1.25rem',
+                                    borderRadius: '0.5rem',
+                                    border: 'none',
+                                    background: viewMode === 'spreadsheet' ? '#fff' : 'transparent',
+                                    color: viewMode === 'spreadsheet' ? 'var(--primary)' : '#64748b',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    boxShadow: viewMode === 'spreadsheet' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                }}
+                            >
+                                <FileText size={16} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> Spreadsheet
+                            </button>
+                            {user.role === 'admin' && (
+                                <button
+                                    onClick={() => setViewMode('live')}
+                                    style={{
+                                        padding: '0.5rem 1.25rem',
+                                        borderRadius: '0.5rem',
+                                        border: 'none',
+                                        background: viewMode === 'live' ? '#fff' : 'transparent',
+                                        color: viewMode === 'live' ? 'var(--primary)' : '#64748b',
+                                        fontWeight: '700',
+                                        cursor: 'pointer',
+                                        boxShadow: viewMode === 'live' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                                    }}
+                                >
+                                    <Smartphone size={16} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> Live Google Sheet
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
                 <button onClick={onLogout} className="btn" style={{ background: '#fee2e2', color: '#ef4444', fontWeight: 800 }}>Logout</button>
             </header>
@@ -441,7 +573,18 @@ const Dashboard = ({ user, onLogout }) => {
                     )}
                 </div>
             ) : user.role === 'counselor' ? (
-                <StaffDashboardChatbot admissions={admissions} onUpdateRemarks={handleUpdateRemarks} />
+                <div>
+                    {viewMode === 'spreadsheet' ? (
+                        <SpreadsheetView
+                            data={admissions}
+                            searchTerm={searchTerm}
+                            setSearchTerm={setSearchTerm}
+                            onClose={() => setViewMode('analytics')}
+                        />
+                    ) : (
+                        <StaffDashboardChatbot admissions={admissions} onUpdateRemarks={handleUpdateRemarks} />
+                    )}
+                </div>
             ) : (
                 <div className="no-print">
                     {/* TOP STATS CARDS - IMAGE 1 STYLE */}
@@ -582,9 +725,38 @@ const Dashboard = ({ user, onLogout }) => {
                                     <button key={tab} onClick={() => setStatusFilter(tab)} className="btn" style={{ padding: '0.75rem 2rem', fontSize: '0.9rem', background: statusFilter === tab ? 'var(--primary)' : '#f1f5f9', color: statusFilter === tab ? '#fff' : 'var(--text)', borderRadius: '1rem' }}>{tab}</button>
                                 ))}
                             </div>
-                            <div style={{ position: 'relative', width: '350px' }}>
-                                <Search style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)' }} size={18} />
-                                <input type="text" placeholder="Search records..." className="input-field" style={{ paddingLeft: '3.5rem', borderRadius: '1.25rem' }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                <button
+                                    onClick={() => {
+                                        // Improved trigger: find button containing "Spreadsheet" text
+                                        const buttons = Array.from(document.querySelectorAll('button'));
+                                        const spreadsheetBtn = buttons.find(b => b.textContent.includes('Spreadsheet'));
+                                        if (spreadsheetBtn) {
+                                            setViewMode('spreadsheet');
+                                            setTimeout(() => {
+                                                const exportBtn = document.querySelector('button[style*="Export"]');
+                                                if (exportBtn) exportBtn.click();
+                                            }, 500);
+                                        }
+                                    }}
+                                    className="btn"
+                                    style={{
+                                        padding: '0.75rem 1.5rem',
+                                        background: '#166534',
+                                        color: '#fff',
+                                        borderRadius: '1rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        fontWeight: '700'
+                                    }}
+                                >
+                                    <Download size={18} /> Download Excel
+                                </button>
+                                <div style={{ position: 'relative', width: '350px' }}>
+                                    <Search style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)' }} size={18} />
+                                    <input type="text" placeholder="Search records..." className="input-field" style={{ paddingLeft: '3.5rem', borderRadius: '1.25rem' }} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                                </div>
                             </div>
                         </div>
                         <div style={{ overflowX: 'auto' }}>
@@ -619,6 +791,35 @@ const Dashboard = ({ user, onLogout }) => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* LIVE GOOGLE SHEET EMBED */}
+            {viewMode === 'live' && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: '#fff', zIndex: 3000, display: 'flex', flexDirection: 'column'
+                }}>
+                    <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ margin: 0 }}>Live Google Spreadsheet</h3>
+                        <button onClick={() => setViewMode('analytics')} className="btn" style={{ background: '#f1f5f9' }}>Close View</button>
+                    </div>
+                    <iframe
+                        src="https://docs.google.com/spreadsheets/d/e/2PACX-1vT3rFndp_S1_r_placeholder/pubhtml?widget=true&amp;headers=false"
+                        style={{ flex: 1, border: 'none', width: '100%', height: '100%' }}
+                        title="Google Sheet"
+                    ></iframe>
+                    <div style={{ padding: '0.5rem 1rem', background: '#fffbeb', fontSize: '0.8rem', color: '#92400e', textAlign: 'center' }}>
+                        Note: To see your real data here, you must publish your Google Sheet to the web and provide the link.
+                    </div>
+                </div>
+            )}
+            {viewMode === 'spreadsheet' && (
+                <SpreadsheetView
+                    data={admissions}
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    onClose={() => setViewMode('analytics')}
+                />
             )}
 
             {/* MODAL LAYER */}

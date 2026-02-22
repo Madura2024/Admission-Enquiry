@@ -1,26 +1,46 @@
 import React, { useState } from 'react';
-import { User, ShieldCheck, Headphones, LogIn, Hash } from 'lucide-react';
+import { User, ShieldCheck, Headphones, LogIn, Hash, Eye, EyeOff } from 'lucide-react';
 
 const Login = ({ onLogin, isSidePanel }) => {
     const [role, setRole] = useState('student');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [appNumber, setAppNumber] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        setError('');
 
         if (role === 'student') {
-            if (appNumber.trim()) {
-                onLogin({ username: appNumber, role, appNumber });
-            } else {
-                alert('Please enter your Application Number');
+            const studentRegex = /^KITE-2026-\d{4}$/i;
+            if (!studentRegex.test(appNumber.trim())) {
+                setError('Invalid format. Use KITE-2026-XXXX');
+                return;
             }
+            onLogin({ username: appNumber.toUpperCase(), role, appNumber: appNumber.toUpperCase() });
         } else {
-            if (username && password) {
-                onLogin({ username, role });
+            // Enforce domain for admin/staff
+            let fullUsername = username.trim();
+            if (!fullUsername.endsWith('@kgkite.ac.in')) {
+                setError('Username must end with @kgkite.ac.in');
+                return;
+            }
+
+            if (role === 'admin') {
+                if (password === 'kite@123') {
+                    onLogin({ username: fullUsername, role });
+                } else {
+                    setError('Wrong password');
+                }
             } else {
-                alert('Please enter credentials');
+                // For staff/counselor, we can keep it flexible or set another default
+                if (username && password) {
+                    onLogin({ username: fullUsername, role });
+                } else {
+                    setError('Please enter credentials');
+                }
             }
         }
     };
@@ -56,6 +76,20 @@ const Login = ({ onLogin, isSidePanel }) => {
             </div>
 
             <form onSubmit={handleSubmit}>
+                {error && (
+                    <div style={{
+                        color: 'var(--error)',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        padding: '0.75rem',
+                        borderRadius: '0.5rem',
+                        marginBottom: '1rem',
+                        fontSize: '0.875rem',
+                        textAlign: 'center',
+                        border: '1px solid rgba(239, 68, 68, 0.2)'
+                    }}>
+                        {error}
+                    </div>
+                )}
                 {role === 'student' ? (
                     <div className="input-group" style={{ marginBottom: '1.5rem' }}>
                         <label className="input-label">Application Number</label>
@@ -67,7 +101,7 @@ const Login = ({ onLogin, isSidePanel }) => {
                                 style={{ paddingLeft: '3rem' }}
                                 placeholder="KITE-2026-XXXX"
                                 value={appNumber}
-                                onChange={(e) => setAppNumber(e.target.value)}
+                                onChange={(e) => setAppNumber(e.target.value.toUpperCase())}
                             />
                         </div>
                     </div>
@@ -81,9 +115,9 @@ const Login = ({ onLogin, isSidePanel }) => {
                                     type="text"
                                     className="input-field"
                                     style={{ paddingLeft: '3rem' }}
-                                    placeholder="Enter Username"
+                                    placeholder="name@kgkite.ac.in"
                                     value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
+                                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
                                 />
                             </div>
                         </div>
@@ -92,13 +126,33 @@ const Login = ({ onLogin, isSidePanel }) => {
                             <div style={{ position: 'relative' }}>
                                 <ShieldCheck size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                                 <input
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     className="input-field"
-                                    style={{ paddingLeft: '3rem' }}
+                                    style={{ paddingLeft: '3rem', paddingRight: '3rem' }}
                                     placeholder="••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '1rem',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: 'none',
+                                        border: 'none',
+                                        color: 'var(--text-muted)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        padding: '0.25rem'
+                                    }}
+                                    title={showPassword ? "Hide Password" : "Show Password"}
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
                             </div>
                         </div>
                     </>
@@ -110,7 +164,7 @@ const Login = ({ onLogin, isSidePanel }) => {
             </form>
 
             <p style={{ marginTop: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                Demo: Use any credentials to log in
+                Secure Portal: Please use your official credentials
             </p>
         </div>
     );
